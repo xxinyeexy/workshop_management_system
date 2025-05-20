@@ -93,13 +93,13 @@ class _ScheduleState extends State<Schedule>{
               ),
             ),
           const SizedBox(height: 20),
-          const Text("Workshop Code:", style: TextStyle(fontWeight: FontWeight.w500)),
+          const Text("Workshop Name:", style: TextStyle(fontWeight: FontWeight.w500)),
           const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
                 child: TextFormField(
-                  initialValue: "A001",
+                  initialValue: "Ali Workshop",
                   readOnly: true,
                   decoration: InputDecoration(
                     filled: true,
