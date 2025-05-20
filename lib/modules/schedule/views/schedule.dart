@@ -1,6 +1,6 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:workshop_management_system/modules/schedule/views/notifications.dart';
+import 'package:workshop_management_system/modules/schedule/views/tasks.dart';
 
 class Schedule extends StatefulWidget{
   const Schedule({super.key});
@@ -13,7 +13,7 @@ class Schedule extends StatefulWidget{
 
 class _ScheduleState extends State<Schedule>{
 
-    TimeOfDay startTime = const TimeOfDay(hour: 8, minute: 0);
+  TimeOfDay startTime = const TimeOfDay(hour: 8, minute: 0);
   TimeOfDay endTime = const TimeOfDay(hour: 18, minute: 0);
   bool showNotification = true;
 
@@ -154,9 +154,19 @@ class _ScheduleState extends State<Schedule>{
           const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              Text("Task", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-              Text("See All", style: TextStyle(color: Colors.blue)),
+            children: [
+              const Text("Task", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+              TextButton(
+                onPressed:() {
+                  Navigator.push(context,
+                  MaterialPageRoute(builder: (context)=>const TasksPage()),
+                  );
+                },
+            child: const Text(
+            "See All",
+            style: TextStyle(color: Colors.blue),
+            ),
+            )
             ],
           ),
           const SizedBox(height: 12),
