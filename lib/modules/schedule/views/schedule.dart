@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:workshop_management_system/modules/schedule/views/notifications.dart';
 import 'package:workshop_management_system/modules/schedule/views/tasks.dart';
+import 'package:workshop_management_system/modules/schedule/widgets/taskcard.dart';
 
 class Schedule extends StatefulWidget{
   const Schedule({super.key});
@@ -44,13 +45,21 @@ class _ScheduleState extends State<Schedule>{
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Schedule'),
+        backgroundColor: Colors.green,
+        centerTitle: true,
+        title: const Text('Schedule',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+        ),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const NotificationPage()),
+                MaterialPageRoute(builder: (context) => const NotificationsPage()),
               );
             },
             child: const Text(
@@ -62,6 +71,13 @@ class _ScheduleState extends State<Schedule>{
             ),
           ),
         ],
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+          ],
+        ),
       ),
        body: ListView(
         padding: const EdgeInsets.all(16),
@@ -162,11 +178,11 @@ class _ScheduleState extends State<Schedule>{
                   MaterialPageRoute(builder: (context)=>const TasksPage()),
                   );
                 },
-            child: const Text(
-            "See All",
-            style: TextStyle(color: Colors.blue),
-            ),
-            )
+                child: const Text(
+                "See All",
+                style: TextStyle(color: Colors.blue),
+                ),
+              )
             ],
           ),
           const SizedBox(height: 12),
@@ -211,63 +227,6 @@ class TimeFieldDisplay extends StatelessWidget {
           const Icon(Icons.access_time, size: 18),
           const SizedBox(width: 8),
           Text(label),
-        ],
-      ),
-    );
-  }
-}
-
-class TaskCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final String date;
-  final String time;
-  final String status;
-  final Color statusColor;
-
-  const TaskCard({
-    super.key,
-    required this.title,
-    required this.subtitle,
-    required this.date,
-    required this.time,
-    required this.status,
-    required this.statusColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  status,
-                  style: TextStyle(color: statusColor, fontSize: 12),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(subtitle, style: const TextStyle(color: Colors.black87)),
-          const SizedBox(height: 6),
-          Text(date, style: const TextStyle(color: Colors.grey)),
-          Text(time, style: const TextStyle(color: Colors.grey)),
         ],
       ),
     );
