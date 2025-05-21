@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:workshop_management_system/modules/schedule/views/schedule.dart';
+import 'package:workshop_management_system/modules/rating/views/FindForemanWorkshopPage.dart';
 
 void main() {
   runApp(const MyApp());
