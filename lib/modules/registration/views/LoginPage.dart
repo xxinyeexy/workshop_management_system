@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:workshop_management_system/modules/rating/views/FindForemanWorkshopPage.dart';
-
+import 'package:workshop_management_system/modules/schedule/views/Schedule.dart';
+import 'package:workshop_management_system/modules/registration/views/SignUpPage.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,9 +16,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController passCtrl = TextEditingController();
   String? error;
 
-  // ---------------------------------------------------------------------------
-  // Decoration helper
-  // ---------------------------------------------------------------------------
   InputDecoration _inputDecoration(String label) {
     return InputDecoration(
       labelText: label,
@@ -27,49 +24,51 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Login → Firestore → Navigate
-  // ---------------------------------------------------------------------------
   Future<void> _loginAndNavigate() async {
+    setState(() => error = null);
     try {
-      // 1. Firebase Auth
       final UserCredential userCred = await FirebaseAuth.instance
           .signInWithEmailAndPassword(
-        email: emailCtrl.text.trim(),
-        password: passCtrl.text.trim(),
-      );
+            email: emailCtrl.text.trim(),
+            password: passCtrl.text.trim(),
+          );
 
-      // 2. Grab the user profile
-      final DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userCred.user!.uid)
-          .get();
+      final user = userCred.user;
+      if (user == null) {
+        setState(() => error = "Failed to get user info.");
+        return;
+      }
+
+      final DocumentSnapshot userDoc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
 
       if (!userDoc.exists) {
         setState(() => error = "User profile not found in Firestore.");
         return;
       }
 
-      // 3. Extract the role: 'foreman' or 'workshop'
+      // Change here: Use 'fullName' field, not 'name'
       final String role = (userDoc['role'] as String).toLowerCase();
+      final String name = (userDoc['fullName'] as String?) ?? "Unknown";
 
-      // 4. Off we go!
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => FindForemanWorkshopPage(userRole: role),
+          builder:
+              (_) =>  const Schedule(),
         ),
       );
+    } on FirebaseAuthException catch (authError) {
+      setState(() => error = authError.message);
     } catch (e) {
-      if (!mounted) return;
       setState(() => error = e.toString());
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Build
-  // ---------------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -123,7 +122,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () {/* implement reset flow */},
+                    onPressed: () {
+                      // Implement password reset flow here if needed
+                    },
                     child: const Text(
                       "Forgot Password?",
                       style: TextStyle(color: Colors.lightBlue),
@@ -162,7 +163,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     const Text("Don't have an account?"),
                     TextButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () {
+                        // Instead of popping back, push the RegisterScreen
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const RegisterScreen(),
+                          ),
+                        );
+                      },
+
                       child: const Text(
                         "Register",
                         style: TextStyle(color: Colors.blue),

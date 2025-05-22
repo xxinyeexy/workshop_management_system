@@ -14,7 +14,7 @@ class WelcomeScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.asset("assets/logo.png", height: 120), // Replace with your logo
+              Image.asset("images/logo.png", height: 120), // Replace with your logo
               const Text("WorkshopPro", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.blue)),
               const Text("Workshop Management System", style: TextStyle(fontSize: 16)),
               const SizedBox(height: 30),

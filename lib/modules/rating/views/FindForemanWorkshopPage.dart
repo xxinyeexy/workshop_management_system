@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
-
+import '../../sidebar.dart'; // your AppScaffold file
+import 'package:workshop_management_system/modules/rating/views/RatingDetails.dart';
+import 'package:workshop_management_system/modules/rating/views/RatingListPage.dart';
 
 /// A single screen that adapts its colour scheme to the caller’s role.
-///
 /// * Pass `userRole: 'foreman'`  →  green theme.
 /// * Pass `userRole: 'workshop'` →  blue theme.
 class FindForemanWorkshopPage extends StatefulWidget {
   final String userRole;
+  final String userName;
 
   const FindForemanWorkshopPage({
     super.key,
     required this.userRole,
+    required this.userName,
   });
 
   @override
@@ -22,13 +25,10 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
-  // ---------------------------------------------------------------------------
-  // Theme colour logic: green for foreman, blue for workshop owner.
-  // ---------------------------------------------------------------------------
   late final Color primaryColor =
       widget.userRole.toLowerCase() == 'foreman'
-          ? const Color(0xFF2FB668) // vibrant foreman green
-          : const Color(0xFF4260DB); // dignified workshop blue
+          ? const Color(0xFF2FB668) // Foreman green
+          : const Color(0xFF4260DB); // Workshop blue
 
   @override
   void initState() {
@@ -36,15 +36,11 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
     _tabController = TabController(length: 2, vsync: this);
   }
 
-  // ---------------------------------------------------------------------------
-  // Helper builders
-  // ---------------------------------------------------------------------------
-
   Widget _buildListTile(
     String initials,
     String name,
     double rating,
-    VoidCallback onTap,
+    bool isForeman,
   ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6),
@@ -53,15 +49,26 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           boxShadow: const [
-            BoxShadow(
-              color: Colors.grey,
-              blurRadius: 5,
-              offset: Offset(0, 2),
-            ),
+            BoxShadow(color: Colors.grey, blurRadius: 5, offset: Offset(0, 2)),
           ],
         ),
         child: ListTile(
-          onTap: onTap,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder:
+                    (_) => RatingDetailPage(
+                      initials: initials,
+                      name: name,
+                      role:
+                          isForeman
+                              ? "Senior Foreman"
+                              : "Auto Repair Specialist",
+                    ),
+              ),
+            );
+          },
           leading: CircleAvatar(
             backgroundColor: Colors.grey[300],
             child: Text(
@@ -80,8 +87,8 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
                   index < rating.floor()
                       ? Icons.star
                       : index < rating
-                          ? Icons.star_half
-                          : Icons.star_border,
+                      ? Icons.star_half
+                      : Icons.star_border,
                   size: 16,
                   color: Colors.orange,
                 );
@@ -99,15 +106,16 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
   }
 
   Widget _buildTabContent(bool isForeman) {
-    final items = isForeman
-        ? [
-            {"initials": "JD", "name": "John Doe", "rating": 4.5},
-            {"initials": "MS", "name": "Mike Smith", "rating": 3.9},
-          ]
-        : [
-            {"initials": "AB", "name": "ABC Workshop", "rating": 4.3},
-            {"initials": "XY", "name": "XYZ Mechanics", "rating": 3.8},
-          ];
+    final items =
+        isForeman
+            ? [
+              {"initials": "JD", "name": "John Doe", "rating": 4.5},
+              {"initials": "MS", "name": "Mike Smith", "rating": 3.9},
+            ]
+            : [
+              {"initials": "AB", "name": "ABC Workshop", "rating": 4.3},
+              {"initials": "XY", "name": "XYZ Mechanics", "rating": 3.8},
+            ];
 
     return ListView.builder(
       shrinkWrap: true,
@@ -119,26 +127,12 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
           item['initials']!,
           item['name']!,
           item['rating']!,
-          () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => RatingDetailPage(
-                  initials: item['initials'],
-                  name: item['name'],
-                  role: isForeman ? "Senior Foreman" : "Auto Repair Specialist",
-                ),
-              ),
-            );
-          },
+          isForeman,
         );
       },
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Build
-  // ---------------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -146,40 +140,56 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
       appBar: AppBar(
         backgroundColor: primaryColor,
         elevation: 0,
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              "Find Foreman / Workshop",
+        leading: Builder(
+          builder:
+              (context) => IconButton(
+                icon: const Icon(Icons.menu, color: Colors.white),
+                onPressed: () {
+                  Scaffold.of(context).openDrawer();
+                },
+              ),
+        ),
+        title: const Text(
+          "Find Foreman / Workshop",
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (_) => RatingListPage(
+                        userRole: widget.userRole.toLowerCase(),
+                        toRateList: [], // Pass real data here
+                        myReviewsList: [],
+                      ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.reviews, color: Colors.white),
+            label: const Text(
+              "My Reviews",
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
+                fontSize: 16,
               ),
             ),
-            TextButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => RatingsListPage(
-                      userRole: widget.userRole.toLowerCase(),
-                    ),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.reviews, color: Colors.white),
-              label: const Text(
-                "My Reviews",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-          ],
-        ),
-        centerTitle: false,
+          ),
+        ],
+      ),
+      drawer: SidebarMenu(
+        // parentContext: context,
+        userRole:
+            widget.userRole.toLowerCase() == 'foreman'
+                ? UserRole.Foreman
+                : UserRole.WorkshopOwner,
+        userName: widget.userName,
+        userPosition: widget.userRole,
+        selectedTitle: 'Ratings',
+        onSelectedTitleChanged: (title) {},
       ),
       body: SafeArea(
         child: Center(
@@ -196,7 +206,7 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 8.0),
                   child: Text(
-                    "I’m looking\nfor workshop\nowner and\nforeman.",
+                    "I’m looking\nfor workshop\nowner and\nforeman.",
                     style: TextStyle(
                       fontSize: 64,
                       fontWeight: FontWeight.bold,
@@ -209,19 +219,13 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
                   labelColor: primaryColor,
                   unselectedLabelColor: Colors.grey,
                   indicatorColor: primaryColor,
-                  tabs: const [
-                    Tab(text: "Foremen"),
-                    Tab(text: "Workshops"),
-                  ],
+                  tabs: const [Tab(text: "Foremen"), Tab(text: "Workshops")],
                 ),
                 const SizedBox(height: 10),
                 Expanded(
                   child: TabBarView(
                     controller: _tabController,
-                    children: [
-                      _buildTabContent(true),  // Foremen
-                      _buildTabContent(false), // Workshops
-                    ],
+                    children: [_buildTabContent(true), _buildTabContent(false)],
                   ),
                 ),
               ],

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:workshop_management_system/modules/schedule/views/notifications.dart';
 import 'package:workshop_management_system/modules/schedule/views/tasks.dart';
 
-class Schedule extends StatefulWidget{
+import '../../sidebar.dart'; // import your SidebarMenu here
+
+class Schedule extends StatefulWidget {
   const Schedule({super.key});
 
   @override
@@ -11,8 +13,7 @@ class Schedule extends StatefulWidget{
   }
 }
 
-class _ScheduleState extends State<Schedule>{
-
+class _ScheduleState extends State<Schedule> {
   TimeOfDay startTime = const TimeOfDay(hour: 8, minute: 0);
   TimeOfDay endTime = const TimeOfDay(hour: 18, minute: 0);
   bool showNotification = true;
@@ -39,12 +40,22 @@ class _ScheduleState extends State<Schedule>{
     final period = time.period == DayPeriod.am ? 'AM' : 'PM';
     return '$hour:$minute $period';
   }
-  
+
   @override
   Widget build(BuildContext context) {
+    // You can customize your colors or pull from a theme, here just example:
+    final primaryColor = Colors.blue; // or match your app theme
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Schedule'),
+        backgroundColor: primaryColor,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () {
@@ -55,15 +66,22 @@ class _ScheduleState extends State<Schedule>{
             },
             child: const Text(
               'Notification',
-              style: TextStyle(
-                color: Colors.black, // Make sure text is visible on AppBar
-                fontSize: 16,
-              ),
+              style: TextStyle(color: Colors.white, fontSize: 16),
             ),
           ),
         ],
       ),
-       body: ListView(
+      drawer: SidebarMenu(
+        // parentContext: context,
+        userRole: UserRole.WorkshopOwner, // Adjust as needed or pass dynamically
+        userName: 'Hovah', // Replace or pass actual userName dynamically
+        userPosition: 'Workshop Owner',
+        selectedTitle: 'Schedule',
+        onSelectedTitleChanged: (title) {
+          // Optional: sync state or navigation logic here
+        },
+      ),
+      body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           if (showNotification)
@@ -157,16 +175,17 @@ class _ScheduleState extends State<Schedule>{
             children: [
               const Text("Task", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
               TextButton(
-                onPressed:() {
-                  Navigator.push(context,
-                  MaterialPageRoute(builder: (context)=>const TasksPage()),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const TasksPage()),
                   );
                 },
-            child: const Text(
-            "See All",
-            style: TextStyle(color: Colors.blue),
-            ),
-            )
+                child: const Text(
+                  "See All",
+                  style: TextStyle(color: Colors.blue),
+                ),
+              )
             ],
           ),
           const SizedBox(height: 12),

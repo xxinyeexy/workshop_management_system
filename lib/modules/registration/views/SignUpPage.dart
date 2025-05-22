@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:workshop_management_system/modules/registration/views/LoginPage.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -212,7 +213,11 @@ class _RegisterScreenState extends State<RegisterScreen>
                 children: [
                   const Text("Already have an account?"),
                   TextButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => Navigator.pop(context,
+                      MaterialPageRoute(
+                        builder: (_) => const LoginScreen(),
+                      ),
+                    ),
                     child: const Text(
                       "Login",
                       style: TextStyle(color: Colors.blue),
