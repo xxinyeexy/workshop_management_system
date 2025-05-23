@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:workshop_management_system/modules/rating/views/FindForemanWorkshopPage.dart';
+import 'package:workshop_management_system/modules/registration/views/UserProfilePage.dart';
 import 'package:workshop_management_system/modules/schedule/views/schedule.dart';
 
 enum UserRole { WorkshopOwner, Foreman }
@@ -96,9 +97,10 @@ class SidebarMenu extends StatelessWidget {
         break;
 
       case 'Profile':
-        page = buildPageWithDrawer(
-          'Profile',
-          const Center(child: Text('Profile Page')),
+        page = UserProfilePage(
+          userRole: userRole == UserRole.Foreman ? 'foreman' : 'workshop',
+          userName: userName,
+          userPosition: userPosition,
         );
         break;
 
