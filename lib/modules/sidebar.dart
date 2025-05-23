@@ -9,7 +9,7 @@ class SidebarMenu extends StatelessWidget {
   final String userName;
   final String userPosition;
   final String selectedTitle;
-  final ValueChanged<String>? onSelectedTitleChanged; // optional callback
+  final ValueChanged<String>? onSelectedTitleChanged;
 
   const SidebarMenu({
     super.key,
@@ -60,7 +60,11 @@ class SidebarMenu extends StatelessWidget {
 
     switch (title) {
       case 'Schedule':
-        page = Schedule();
+        page = Schedule(
+          userName: userName,
+          userRole: userRole == UserRole.Foreman ? 'foreman' : 'workshop',
+          userPosition: userPosition,
+        );
         break;
 
       case 'Inventory':
@@ -99,7 +103,11 @@ class SidebarMenu extends StatelessWidget {
         break;
 
       default:
-        page = Schedule();
+        page = Schedule(
+          userName: userName,
+          userRole: userRole == UserRole.Foreman ? 'foreman' : 'workshop',
+          userPosition: userPosition,
+        );
     }
 
     Navigator.of(context).pushReplacement(

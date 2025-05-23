@@ -5,7 +5,16 @@ import 'package:workshop_management_system/modules/schedule/views/tasks.dart';
 import '../../sidebar.dart'; // import your SidebarMenu here
 
 class Schedule extends StatefulWidget {
-  const Schedule({super.key});
+  final String userName;
+  final String userRole;
+  final String userPosition;
+
+  const Schedule({
+    super.key,
+    required this.userName,
+    required this.userRole,
+    required this.userPosition,
+  });
 
   @override
   State<StatefulWidget> createState() {
@@ -41,10 +50,22 @@ class _ScheduleState extends State<Schedule> {
     return '$hour:$minute $period';
   }
 
+  UserRole _getUserRole(String role) {
+    switch (role.toLowerCase()) {
+      case 'foreman':
+        return UserRole.Foreman;
+      case 'workshop':
+      case 'workshop owner':
+      case 'workshopowner':
+        return UserRole.WorkshopOwner;
+      default:
+        return UserRole.WorkshopOwner; // default fallback
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // You can customize your colors or pull from a theme, here just example:
-    final primaryColor = Colors.blue; // or match your app theme
+    final primaryColor = Colors.blue;
 
     return Scaffold(
       appBar: AppBar(
@@ -72,10 +93,9 @@ class _ScheduleState extends State<Schedule> {
         ],
       ),
       drawer: SidebarMenu(
-        // parentContext: context,
-        userRole: UserRole.WorkshopOwner, // Adjust as needed or pass dynamically
-        userName: 'Hovah', // Replace or pass actual userName dynamically
-        userPosition: 'Workshop Owner',
+        userRole: _getUserRole(widget.userRole),
+        userName: widget.userName,
+        userPosition: widget.userPosition,
         selectedTitle: 'Schedule',
         onSelectedTitleChanged: (title) {
           // Optional: sync state or navigation logic here
@@ -200,7 +220,7 @@ class _ScheduleState extends State<Schedule> {
           const SizedBox(height: 12),
           const TaskCard(
             title: "Bumper Repair",
-            subtitle: "Repair the CWS 1654’s car bumper",
+            subtitle: "Repair the CWS 1654's car bumper",
             date: "Monday, March 31, 2025",
             time: "10:00 AM – 12:00 PM",
             status: "Scheduled",

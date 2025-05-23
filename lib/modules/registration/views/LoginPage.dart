@@ -50,16 +50,33 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      // Change here: Use 'fullName' field, not 'name'
-      final String role = (userDoc['role'] as String).toLowerCase();
-      final String name = (userDoc['fullName'] as String?) ?? "Unknown";
+      final String userRole = (userDoc['role'] as String?) ?? "workshop";
+      final String userName = (userDoc['fullName'] as String?) ?? "Unknown";
+      
+      // Get user position based on role
+      String userPosition;
+      switch (userRole.toLowerCase()) {
+        case 'foreman':
+          userPosition = 'Foreman';
+          break;
+        case 'workshop':
+        case 'workshop owner':
+        case 'workshopowner':
+          userPosition = 'Workshop Owner';
+          break;
+        default:
+          userPosition = 'User';
+      }
 
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder:
-              (_) =>  const Schedule(),
+          builder: (_) => Schedule(
+            userName: userName,
+            userRole: userRole,
+            userPosition: userPosition,
+          ),
         ),
       );
     } on FirebaseAuthException catch (authError) {
@@ -164,7 +181,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     const Text("Don't have an account?"),
                     TextButton(
                       onPressed: () {
-                        // Instead of popping back, push the RegisterScreen
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -172,7 +188,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         );
                       },
-
                       child: const Text(
                         "Register",
                         style: TextStyle(color: Colors.blue),
