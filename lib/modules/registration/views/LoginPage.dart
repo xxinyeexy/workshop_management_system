@@ -50,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      final String userRole = (userDoc['role'] as String?) ?? "workshop";
+      final String userRole = (userDoc['role'] as String?) ?? "workshop owner";
       final String userName = (userDoc['fullName'] as String?) ?? "Unknown";
       
       // Get user position based on role
@@ -65,7 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
           userPosition = 'Workshop Owner';
           break;
         default:
-          userPosition = 'User';
+          userPosition = 'Workshop Owner';
       }
 
       if (!mounted) return;

@@ -10,6 +10,7 @@ class SidebarMenu extends StatelessWidget {
   final String userPosition;
   final String selectedTitle;
   final ValueChanged<String>? onSelectedTitleChanged;
+  final String? originalUserRole; // Add this to preserve original role string
 
   const SidebarMenu({
     super.key,
@@ -18,6 +19,7 @@ class SidebarMenu extends StatelessWidget {
     required this.userPosition,
     required this.selectedTitle,
     this.onSelectedTitleChanged,
+    this.originalUserRole,
   });
 
   Color get primaryColor {
@@ -26,6 +28,20 @@ class SidebarMenu extends StatelessWidget {
         return const Color(0xFF4361EE);
       case UserRole.Foreman:
         return const Color(0xFF3498DB);
+    }
+  }
+
+  String get userRoleString {
+    return originalUserRole ?? (userRole == UserRole.Foreman ? 'foreman' : 'workshop owner');
+  }
+
+  // Helper method to get rating page role string without affecting sidebar
+  String get ratingPageRoleString {
+    switch (userRole) {
+      case UserRole.Foreman:
+        return 'foreman';
+      case UserRole.WorkshopOwner:
+        return 'workshop';
     }
   }
 
@@ -46,6 +62,7 @@ class SidebarMenu extends StatelessWidget {
         userPosition: userPosition,
         selectedTitle: pageTitle,
         onSelectedTitleChanged: onSelectedTitleChanged,
+        originalUserRole: originalUserRole,
       ),
       body: bodyContent,
     );
@@ -62,7 +79,7 @@ class SidebarMenu extends StatelessWidget {
       case 'Schedule':
         page = Schedule(
           userName: userName,
-          userRole: userRole == UserRole.Foreman ? 'foreman' : 'workshop',
+          userRole: userRoleString, // Use the preserved original role
           userPosition: userPosition,
         );
         break;
@@ -89,9 +106,14 @@ class SidebarMenu extends StatelessWidget {
         break;
 
       case 'Ratings':
+        // Pass all necessary data to FindForemanWorkshopPage so it can handle its own sidebar correctly
         page = FindForemanWorkshopPage(
-          userRole: userRole == UserRole.Foreman ? 'foreman' : 'workshop',
+          userRole: ratingPageRoleString, // Use specific role string for rating page logic
           userName: userName,
+          // Pass additional parameters so FindForemanWorkshopPage can create its sidebar properly
+          originalUserRole: userRoleString, // Pass the original role string
+          userPosition: userPosition, // Pass user position
+          enumUserRole: userRole, // Pass the UserRole enum
         );
         break;
 
@@ -105,7 +127,7 @@ class SidebarMenu extends StatelessWidget {
       default:
         page = Schedule(
           userName: userName,
-          userRole: userRole == UserRole.Foreman ? 'foreman' : 'workshop',
+          userRole: userRoleString, // Use the preserved original role
           userPosition: userPosition,
         );
     }
