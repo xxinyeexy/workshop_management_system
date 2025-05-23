@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:workshop_management_system/modules/schedule/views/schedule.dart';
 
 void main() {
   runApp(const MyApp());
@@ -108,6 +109,16 @@ class _MyHomePageState extends State<MyHomePage> {
             Text(
               '$_counter',
               style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const Schedule()),
+                );
+              },
+              child: const Text('Go to Schedule'),
             ),
           ],
         ),
