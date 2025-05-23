@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'schedule.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
@@ -27,7 +28,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
       appBar: AppBar(
         title: const Text("Notifications"),
         centerTitle: true,
-        backgroundColor: Colors.green,
+        backgroundColor: userRole == 'foreman' ? Colors.green : Colors.blue,
         leading: const BackButton(),
       ),
       body: ListView(

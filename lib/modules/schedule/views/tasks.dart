@@ -1,139 +1,51 @@
 import 'package:flutter/material.dart';
-import 'package:workshop_management_system/modules/schedule/widgets/taskcard.dart';
+import 'package:workshop_management_system/modules/schedule/widgets/taskCard.dart';
+import 'package:workshop_management_system/modules/schedule/models/scheduleInfo.dart';
+import 'taskDetail.dart';
 
-class TasksPage extends StatefulWidget{
-  const TasksPage({super.key});
+class TasksPage extends StatelessWidget {
+  final String userRole; // Accept from previous page
 
-  @override
-  State<StatefulWidget> createState() {
-    return _TasksPageState();
-  }
-  
-}
+  const TasksPage({super.key, required this.userRole}); // Required in constructor
 
-class _TasksPageState extends State<TasksPage>{
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.green,
+        backgroundColor: userRole == 'foreman' ? Colors.green : Colors.blue,
         centerTitle: true,
-        title: const Text('Tasks',
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
+        title: const Text(
+          'Tasks',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const TaskCard(
-            title: "Engine Repair",
-            subtitle: "Repair the WMS 9011's car engine",
-            date: "Sunday, March 30, 2025",
-            time: "9:00 AM - 12:00 PM",
-            status: "In Progress",
-            statusColor: Color(0xFF2D9CDB),
-          ),
-          const SizedBox(height: 12),
-          const TaskCard(
-            title: "Bumper Repair",
-            subtitle: "Repair the CWS 1654’s car bumper",
-            date: "Monday, March 31, 2025",
-            time: "10:00 AM – 12:00 PM",
-            status: "Scheduled",
-            statusColor: Color(0xFF56CCF2),
-          ),
-          const TaskCard(
-            title: "Engine Repair",
-            subtitle: "Repair the WMS 9011's car engine",
-            date: "Sunday, March 30, 2025",
-            time: "9:00 AM - 12:00 PM",
-            status: "In Progress",
-            statusColor: Color(0xFF2D9CDB),
-          ),
-          const SizedBox(height: 12),
-          const TaskCard(
-            title: "Bumper Repair",
-            subtitle: "Repair the CWS 1654’s car bumper",
-            date: "Monday, March 31, 2025",
-            time: "10:00 AM – 12:00 PM",
-            status: "Scheduled",
-            statusColor: Color(0xFF56CCF2),
-          ),
-          const TaskCard(
-            title: "Engine Repair",
-            subtitle: "Repair the WMS 9011's car engine",
-            date: "Sunday, March 30, 2025",
-            time: "9:00 AM - 12:00 PM",
-            status: "In Progress",
-            statusColor: Color(0xFF2D9CDB),
-          ),
-          const SizedBox(height: 12),
-          const TaskCard(
-            title: "Bumper Repair",
-            subtitle: "Repair the CWS 1654’s car bumper",
-            date: "Monday, March 31, 2025",
-            time: "10:00 AM – 12:00 PM",
-            status: "Scheduled",
-            statusColor: Color(0xFF56CCF2),
-          ),
-          const TaskCard(
-            title: "Engine Repair",
-            subtitle: "Repair the WMS 9011's car engine",
-            date: "Sunday, March 30, 2025",
-            time: "9:00 AM - 12:00 PM",
-            status: "In Progress",
-            statusColor: Color(0xFF2D9CDB),
-          ),
-          const SizedBox(height: 12),
-          const TaskCard(
-            title: "Bumper Repair",
-            subtitle: "Repair the CWS 1654’s car bumper",
-            date: "Monday, March 31, 2025",
-            time: "10:00 AM – 12:00 PM",
-            status: "Scheduled",
-            statusColor: Color(0xFF56CCF2),
-          ),
-          const TaskCard(
-            title: "Engine Repair",
-            subtitle: "Repair the WMS 9011's car engine",
-            date: "Sunday, March 30, 2025",
-            time: "9:00 AM - 12:00 PM",
-            status: "In Progress",
-            statusColor: Color(0xFF2D9CDB),
-          ),
-          const SizedBox(height: 12),
-          const TaskCard(
-            title: "Bumper Repair",
-            subtitle: "Repair the CWS 1654’s car bumper",
-            date: "Monday, March 31, 2025",
-            time: "10:00 AM – 12:00 PM",
-            status: "Scheduled",
-            statusColor: Color(0xFF56CCF2),
-          ),
-          const TaskCard(
-            title: "Engine Repair",
-            subtitle: "Repair the WMS 9011's car engine",
-            date: "Sunday, March 30, 2025",
-            time: "9:00 AM - 12:00 PM",
-            status: "In Progress",
-            statusColor: Color(0xFF2D9CDB),
-          ),
-          const SizedBox(height: 12),
-          const TaskCard(
-            title: "Bumper Repair",
-            subtitle: "Repair the CWS 1654’s car bumper",
-            date: "Monday, March 31, 2025",
-            time: "10:00 AM – 12:00 PM",
-            status: "Scheduled",
-            statusColor: Color(0xFF56CCF2),
-          ),
+          ...mockScheduleList.map((task) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: TaskCard(
+              task: task,
+              userRole: userRole,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => TaskDetailPage(
+                      scheduleId: task.scheduleId,
+                      userRole: userRole,
+                    ),
+                  ),
+                );
+              },
+            ),
+          )),
         ],
       ),
     );
   }
-
 }
