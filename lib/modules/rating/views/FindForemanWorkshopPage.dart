@@ -3,17 +3,23 @@ import '../../sidebar.dart'; // your AppScaffold file
 import 'package:workshop_management_system/modules/rating/views/RatingDetails.dart';
 import 'package:workshop_management_system/modules/rating/views/RatingListPage.dart';
 
-/// A single screen that adapts its colour scheme to the caller’s role.
+/// A single screen that adapts its colour scheme to the caller's role.
 /// * Pass `userRole: 'foreman'`  →  green theme.
 /// * Pass `userRole: 'workshop'` →  blue theme.
 class FindForemanWorkshopPage extends StatefulWidget {
-  final String userRole;
+  final String userRole; // This is for the page's internal logic ('foreman' or 'workshop')
   final String userName;
+  final String? originalUserRole; // This is the original role string ('foreman', 'workshop owner', etc.)
+  final String? userPosition; // This is the display position ('Foreman', 'Workshop Owner')
+  final UserRole? enumUserRole; // This is the UserRole enum
 
   const FindForemanWorkshopPage({
     super.key,
     required this.userRole,
     required this.userName,
+    this.originalUserRole,
+    this.userPosition,
+    this.enumUserRole,
   });
 
   @override
@@ -29,6 +35,47 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
       widget.userRole.toLowerCase() == 'foreman'
           ? const Color(0xFF2FB668) // Foreman green
           : const Color(0xFF4260DB); // Workshop blue
+
+  // Helper methods to convert role strings
+  UserRole _getUserRole(String role) {
+    switch (role.toLowerCase()) {
+      case 'foreman':
+        return UserRole.Foreman;
+      case 'workshop':
+      case 'workshop owner':
+      case 'workshopowner':
+        return UserRole.WorkshopOwner;
+      default:
+        return UserRole.WorkshopOwner;
+    }
+  }
+
+  String _getUserPosition(String role) {
+    switch (role.toLowerCase()) {
+      case 'foreman':
+        return 'Foreman';
+      case 'workshop':
+      case 'workshop owner':
+      case 'workshopowner':
+        return 'Workshop Owner';
+      default:
+        return 'Workshop Owner';
+    }
+  }
+
+  String _getOriginalUserRole(String role) {
+    switch (role.toLowerCase()) {
+      case 'foreman':
+        return 'foreman';
+      case 'workshop':
+        return 'workshop owner'; // Convert 'workshop' back to 'workshop owner'
+      case 'workshop owner':
+      case 'workshopowner':
+        return 'workshop owner';
+      default:
+        return 'workshop owner';
+    }
+  }
 
   @override
   void initState() {
@@ -181,14 +228,11 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
         ],
       ),
       drawer: SidebarMenu(
-        // parentContext: context,
-        userRole:
-            widget.userRole.toLowerCase() == 'foreman'
-                ? UserRole.Foreman
-                : UserRole.WorkshopOwner,
+        userRole: widget.enumUserRole ?? _getUserRole(widget.originalUserRole ?? widget.userRole),
         userName: widget.userName,
-        userPosition: widget.userRole,
+        userPosition: widget.userPosition ?? _getUserPosition(widget.originalUserRole ?? widget.userRole),
         selectedTitle: 'Ratings',
+        originalUserRole: widget.originalUserRole ?? _getOriginalUserRole(widget.userRole),
         onSelectedTitleChanged: (title) {},
       ),
       body: SafeArea(
@@ -206,7 +250,7 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 8.0),
                   child: Text(
-                    "I’m looking\nfor workshop\nowner and\nforeman.",
+                    "I'm looking\nfor workshop\nowner and\nforeman.",
                     style: TextStyle(
                       fontSize: 64,
                       fontWeight: FontWeight.bold,

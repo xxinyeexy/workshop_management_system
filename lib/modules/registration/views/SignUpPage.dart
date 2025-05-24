@@ -62,6 +62,15 @@ class _RegisterScreenState extends State<RegisterScreen>
     final address = workshopAddressController.text.trim();
     final role = isWorkshopOwner ? "workshop_owner" : "foreman";
 
+    // Validation
+    if (fullName.isEmpty || email.isEmpty || phone.isEmpty || password.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please fill in all required fields")),
+      );
+      return;
+    }
+
     if (password != confirmPassword) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -70,31 +79,78 @@ class _RegisterScreenState extends State<RegisterScreen>
       return;
     }
 
+    if (isWorkshopOwner && address.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Workshop address is required")),
+      );
+      return;
+    }
+
     try {
+      // Create user account
       UserCredential userCred = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: email, password: password);
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userCred.user!.uid)
-          .set({
+      final uid = userCred.user!.uid;
+
+      // Create user document
+      Map<String, dynamic> userData = {
+        'uid': uid, // Add uid field for easier querying
         'fullName': fullName,
         'email': email,
         'phone': phone,
         'role': role,
-        if (isWorkshopOwner) 'address': address,
+        'createdAt': Timestamp.now(),
+        'isActive': true, // Add status field
+      };
+
+      if (isWorkshopOwner) {
+        userData['address'] = address;
+      }
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .set(userData);
+
+      // Create initial rating profile with blank template
+      await FirebaseFirestore.instance
+          .collection('rating_profiles')
+          .doc(uid)
+          .set({
+        'uid': uid,
+        'fullName': fullName,
+        'role': role,
+        'averageRating': 0.0,
+        'totalRatings': 0,
+        'starDistribution': {
+          '5': 0,
+          '4': 0,
+          '3': 0,
+          '2': 0,
+          '1': 0,
+        },
+        'createdAt': Timestamp.now(),
+        'lastUpdated': Timestamp.now(),
       });
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Registered successfully as $role")),
+        SnackBar(
+          content: Text("Successfully registered as ${role.replaceAll('_', ' ')}!"),
+          backgroundColor: Colors.green,
+        ),
       );
 
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: ${e.toString()}")),
+        SnackBar(
+          content: Text("Registration failed: ${e.toString()}"),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -181,11 +237,15 @@ class _RegisterScreenState extends State<RegisterScreen>
               ),
               const SizedBox(height: 16),
               if (isWorkshopOwner)
-                TextField(
-                  controller: workshopAddressController,
-                  decoration: _inputDecoration("Workshop Address"),
+                Column(
+                  children: [
+                    TextField(
+                      controller: workshopAddressController,
+                      decoration: _inputDecoration("Workshop Address"),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                 ),
-              const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 height: 48,
@@ -213,11 +273,14 @@ class _RegisterScreenState extends State<RegisterScreen>
                 children: [
                   const Text("Already have an account?"),
                   TextButton(
-                    onPressed: () => Navigator.pop(context,
-                      MaterialPageRoute(
-                        builder: (_) => const LoginScreen(),
-                      ),
-                    ),
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const LoginScreen(),
+                        ),
+                      );
+                    },
                     child: const Text(
                       "Login",
                       style: TextStyle(color: Colors.blue),

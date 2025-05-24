@@ -63,6 +63,15 @@ class _ScheduleState extends State<Schedule> {
     }
   }
 
+  String _getUserRoleString(UserRole role) {
+    switch (role) {
+      case UserRole.Foreman:
+        return 'foreman';
+      case UserRole.WorkshopOwner:
+        return 'workshop owner';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final primaryColor = Colors.blue;
@@ -97,6 +106,7 @@ class _ScheduleState extends State<Schedule> {
         userName: widget.userName,
         userPosition: widget.userPosition,
         selectedTitle: 'Schedule',
+        originalUserRole: widget.userRole,
         onSelectedTitleChanged: (title) {
           // Optional: sync state or navigation logic here
         },
