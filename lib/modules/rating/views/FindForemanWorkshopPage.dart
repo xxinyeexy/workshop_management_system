@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../sidebar.dart'; // your AppScaffold file
 import 'package:workshop_management_system/modules/rating/views/RatingDetails.dart';
 import 'package:workshop_management_system/modules/rating/views/RatingListPage.dart';
@@ -30,6 +31,11 @@ class FindForemanWorkshopPage extends StatefulWidget {
 class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  
+  // Lists to store users from Firestore
+  List<Map<String, dynamic>> foremen = [];
+  List<Map<String, dynamic>> workshops = [];
+  bool isLoading = true;
 
   late final Color primaryColor =
       widget.userRole.toLowerCase() == 'foreman'
@@ -68,7 +74,7 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
       case 'foreman':
         return 'foreman';
       case 'workshop':
-        return 'workshop owner'; // Convert 'workshop' back to 'workshop owner'
+        return 'workshop owner';
       case 'workshop owner':
       case 'workshopowner':
         return 'workshop owner';
@@ -81,14 +87,100 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _fetchUsers();
   }
 
-  Widget _buildListTile(
-    String initials,
-    String name,
-    double rating,
-    bool isForeman,
-  ) {
+  // Fetch users from Firestore
+  Future<void> _fetchUsers() async {
+    try {
+      setState(() {
+        isLoading = true;
+      });
+
+      // Fetch all users from Firestore
+      QuerySnapshot usersSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .get();
+
+      List<Map<String, dynamic>> tempForemen = [];
+      List<Map<String, dynamic>> tempWorkshops = [];
+
+      for (QueryDocumentSnapshot doc in usersSnapshot.docs) {
+        Map<String, dynamic> userData = doc.data() as Map<String, dynamic>;
+        userData['uid'] = doc.id; // Add document ID
+
+        // Get user's average rating and total ratings
+        Map<String, dynamic> ratingData = await _getUserRatingData(doc.id);
+        userData['averageRating'] = ratingData['averageRating'];
+        userData['totalRatings'] = ratingData['totalRatings'];
+
+        // Separate users by role
+        if (userData['role'] == 'foreman') {
+          tempForemen.add(userData);
+        } else if (userData['role'] == 'workshop_owner') {
+          tempWorkshops.add(userData);
+        }
+      }
+
+      setState(() {
+        foremen = tempForemen;
+        workshops = tempWorkshops;
+        isLoading = false;
+      });
+    } catch (e) {
+      print('Error fetching users: $e');
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  // Get user's rating data from Firestore
+  Future<Map<String, dynamic>> _getUserRatingData(String userId) async {
+    try {
+      QuerySnapshot ratingsSnapshot = await FirebaseFirestore.instance
+          .collection('ratings')
+          .where('ratedUserId', isEqualTo: userId)
+          .get();
+
+      if (ratingsSnapshot.docs.isEmpty) {
+        return {'averageRating': 0.0, 'totalRatings': 0};
+      }
+
+      double totalRating = 0.0;
+      int count = ratingsSnapshot.docs.length;
+
+      for (QueryDocumentSnapshot doc in ratingsSnapshot.docs) {
+        Map<String, dynamic> ratingData = doc.data() as Map<String, dynamic>;
+        totalRating += (ratingData['rating'] ?? 0).toDouble();
+      }
+
+      double averageRating = totalRating / count;
+
+      return {
+        'averageRating': averageRating,
+        'totalRatings': count,
+      };
+    } catch (e) {
+      print('Error fetching rating data: $e');
+      return {'averageRating': 0.0, 'totalRatings': 0};
+    }
+  }
+
+  // Generate initials from full name
+  String _getInitials(String fullName) {
+    List<String> names = fullName.trim().split(' ');
+    if (names.isEmpty) return 'U';
+    if (names.length == 1) return names[0][0].toUpperCase();
+    return '${names[0][0]}${names[names.length - 1][0]}'.toUpperCase();
+  }
+
+  Widget _buildListTile(Map<String, dynamic> userData, bool isForeman) {
+    String initials = _getInitials(userData['fullName'] ?? 'Unknown');
+    String name = userData['fullName'] ?? 'Unknown';
+    double rating = userData['averageRating']?.toDouble() ?? 0.0;
+    int totalRatings = userData['totalRatings'] ?? 0;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6),
       child: Container(
@@ -104,15 +196,12 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder:
-                    (_) => RatingDetailPage(
-                      initials: initials,
-                      name: name,
-                      role:
-                          isForeman
-                              ? "Senior Foreman"
-                              : "Auto Repair Specialist",
-                    ),
+                builder: (_) => RatingDetailPage(
+                  initials: initials,
+                  name: name,
+                  role: isForeman ? "Foreman" : "Workshop Owner",
+                  userData: userData, // Pass user data for rating
+                ),
               ),
             );
           },
@@ -127,23 +216,46 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
             name,
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
-          subtitle: Row(
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ...List.generate(5, (index) {
-                return Icon(
-                  index < rating.floor()
-                      ? Icons.star
-                      : index < rating
-                      ? Icons.star_half
-                      : Icons.star_border,
-                  size: 16,
-                  color: Colors.orange,
-                );
-              }),
-              const SizedBox(width: 6),
-              Text(
-                "(${rating.toStringAsFixed(1)})",
-                style: const TextStyle(fontSize: 12),
+              if (isForeman && userData['phone'] != null)
+                Text(
+                  'Phone: ${userData['phone']}',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              if (!isForeman && userData['address'] != null)
+                Text(
+                  'Address: ${userData['address']}',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  if (rating > 0) ...[
+                    ...List.generate(5, (index) {
+                      return Icon(
+                        index < rating.floor()
+                            ? Icons.star
+                            : index < rating
+                                ? Icons.star_half
+                                : Icons.star_border,
+                        size: 16,
+                        color: Colors.orange,
+                      );
+                    }),
+                    const SizedBox(width: 6),
+                    Text(
+                      "(${rating.toStringAsFixed(1)}) $totalRatings reviews",
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ] else ...[
+                    const Text(
+                      "No ratings yet",
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ],
               ),
             ],
           ),
@@ -153,48 +265,72 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
   }
 
   Widget _buildTabContent(bool isForeman) {
-    final items =
-        isForeman
-            ? [
-              {"initials": "JD", "name": "John Doe", "rating": 4.5},
-              {"initials": "MS", "name": "Mike Smith", "rating": 3.9},
-            ]
-            : [
-              {"initials": "AB", "name": "ABC Workshop", "rating": 4.3},
-              {"initials": "XY", "name": "XYZ Mechanics", "rating": 3.8},
-            ];
+    List<Map<String, dynamic>> items = isForeman ? foremen : workshops;
 
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final item = items[index] as Map<String, dynamic>;
-        return _buildListTile(
-          item['initials']!,
-          item['name']!,
-          item['rating']!,
-          isForeman,
-        );
-      },
+    if (isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    if (items.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isForeman ? Icons.person_search : Icons.store_outlined,
+              size: 64,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              isForeman 
+                  ? 'No foremen registered yet'
+                  : 'No workshops registered yet',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _fetchUsers,
+      child: ListView.builder(
+        shrinkWrap: true,
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          return _buildListTile(items[index], isForeman);
+        },
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    // Determine workshopName for passing to RatingListPage
+    String workshopName = widget.userRole.toLowerCase() == 'workshop'
+        ? widget.userName
+        : 'Ali Workshop'; // Replace with your actual foreman's workshop lookup if possible
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         backgroundColor: primaryColor,
         elevation: 0,
         leading: Builder(
-          builder:
-              (context) => IconButton(
-                icon: const Icon(Icons.menu, color: Colors.white),
-                onPressed: () {
-                  Scaffold.of(context).openDrawer();
-                },
-              ),
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: Colors.white),
+            onPressed: () {
+              Scaffold.of(context).openDrawer();
+            },
+          ),
         ),
         title: const Text(
           "Find Foreman / Workshop",
@@ -206,12 +342,13 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder:
-                      (_) => RatingListPage(
-                        userRole: widget.userRole.toLowerCase(),
-                        toRateList: [], // Pass real data here
-                        myReviewsList: [],
-                      ),
+                  builder: (_) => RatingListPage(
+                    userRole: widget.userRole.toLowerCase(),
+                    userName: widget.userName,
+                    workshopName: workshopName,
+                    toRateList: [], // pass your real data here
+                    myReviewsList: [],
+                  ),
                 ),
               );
             },
@@ -263,13 +400,19 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
                   labelColor: primaryColor,
                   unselectedLabelColor: Colors.grey,
                   indicatorColor: primaryColor,
-                  tabs: const [Tab(text: "Foremen"), Tab(text: "Workshops")],
+                  tabs: [
+                    Tab(text: "Foremen (${foremen.length})"),
+                    Tab(text: "Workshops (${workshops.length})"),
+                  ],
                 ),
                 const SizedBox(height: 10),
                 Expanded(
                   child: TabBarView(
                     controller: _tabController,
-                    children: [_buildTabContent(true), _buildTabContent(false)],
+                    children: [
+                      _buildTabContent(true), 
+                      _buildTabContent(false)
+                    ],
                   ),
                 ),
               ],
@@ -278,5 +421,11 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 }

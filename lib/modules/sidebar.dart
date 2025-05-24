@@ -4,13 +4,13 @@ import 'package:workshop_management_system/modules/schedule/views/schedule.dart'
 
 enum UserRole { WorkshopOwner, Foreman }
 
-class SidebarMenu extends StatelessWidget {
+class SidebarMenu extends StatefulWidget {
   final UserRole userRole;
   final String userName;
   final String userPosition;
   final String selectedTitle;
   final ValueChanged<String>? onSelectedTitleChanged;
-  final String? originalUserRole; // Add this to preserve original role string
+  final String? originalUserRole;
 
   const SidebarMenu({
     super.key,
@@ -22,8 +22,42 @@ class SidebarMenu extends StatelessWidget {
     this.originalUserRole,
   });
 
+  @override
+  State<SidebarMenu> createState() => _SidebarMenuState();
+}
+
+class _SidebarMenuState extends State<SidebarMenu> {
+  int pendingRatingsCount = 0;
+
+  // Assume workshopName is same as userName if workshop owner, or fetch accordingly for foreman
+  late String workshopName;
+
+  @override
+  void initState() {
+    super.initState();
+    _setWorkshopName();
+    _updatePendingRatingsCount();
+  }
+
+  void _setWorkshopName() {
+    if (widget.userRole == UserRole.WorkshopOwner) {
+      workshopName = widget.userName;
+    } else {
+      // For demo, assign a fixed workshop name for foreman
+      workshopName = 'Ali Workshop'; // Replace with real lookup if needed
+    }
+  }
+
+  void _updatePendingRatingsCount() {
+    final userRoleString = widget.userRole == UserRole.Foreman ? 'foreman' : 'workshop';
+    final pendingRatings = RatingService().getPendingRatingsForUser(userRoleString, widget.userName, workshopName);
+    setState(() {
+      pendingRatingsCount = pendingRatings.length;
+    });
+  }
+
   Color get primaryColor {
-    switch (userRole) {
+    switch (widget.userRole) {
       case UserRole.WorkshopOwner:
         return const Color(0xFF4361EE);
       case UserRole.Foreman:
@@ -32,12 +66,12 @@ class SidebarMenu extends StatelessWidget {
   }
 
   String get userRoleString {
-    return originalUserRole ?? (userRole == UserRole.Foreman ? 'foreman' : 'workshop owner');
+    return widget.originalUserRole ??
+        (widget.userRole == UserRole.Foreman ? 'foreman' : 'workshop owner');
   }
 
-  // Helper method to get rating page role string without affecting sidebar
   String get ratingPageRoleString {
-    switch (userRole) {
+    switch (widget.userRole) {
       case UserRole.Foreman:
         return 'foreman';
       case UserRole.WorkshopOwner:
@@ -57,12 +91,12 @@ class SidebarMenu extends StatelessWidget {
         ),
       ),
       drawer: SidebarMenu(
-        userRole: userRole,
-        userName: userName,
-        userPosition: userPosition,
+        userRole: widget.userRole,
+        userName: widget.userName,
+        userPosition: widget.userPosition,
         selectedTitle: pageTitle,
-        onSelectedTitleChanged: onSelectedTitleChanged,
-        originalUserRole: originalUserRole,
+        onSelectedTitleChanged: widget.onSelectedTitleChanged,
+        originalUserRole: widget.originalUserRole,
       ),
       body: bodyContent,
     );
@@ -71,16 +105,16 @@ class SidebarMenu extends StatelessWidget {
   void _navigateTo(BuildContext context, String title) {
     Navigator.of(context).pop(); // close drawer
 
-    onSelectedTitleChanged?.call(title);
+    widget.onSelectedTitleChanged?.call(title);
 
     Widget page;
 
     switch (title) {
       case 'Schedule':
         page = Schedule(
-          userName: userName,
-          userRole: userRoleString, // Use the preserved original role
-          userPosition: userPosition,
+          userName: widget.userName,
+          userRole: userRoleString,
+          userPosition: widget.userPosition,
         );
         break;
 
@@ -106,14 +140,12 @@ class SidebarMenu extends StatelessWidget {
         break;
 
       case 'Ratings':
-        // Pass all necessary data to FindForemanWorkshopPage so it can handle its own sidebar correctly
         page = FindForemanWorkshopPage(
-          userRole: ratingPageRoleString, // Use specific role string for rating page logic
-          userName: userName,
-          // Pass additional parameters so FindForemanWorkshopPage can create its sidebar properly
-          originalUserRole: userRoleString, // Pass the original role string
-          userPosition: userPosition, // Pass user position
-          enumUserRole: userRole, // Pass the UserRole enum
+          userRole: ratingPageRoleString,
+          userName: widget.userName,
+          originalUserRole: userRoleString,
+          userPosition: widget.userPosition,
+          enumUserRole: widget.userRole,
         );
         break;
 
@@ -126,9 +158,9 @@ class SidebarMenu extends StatelessWidget {
 
       default:
         page = Schedule(
-          userName: userName,
-          userRole: userRoleString, // Use the preserved original role
-          userPosition: userPosition,
+          userName: widget.userName,
+          userRole: userRoleString,
+          userPosition: widget.userPosition,
         );
     }
 
@@ -141,24 +173,87 @@ class SidebarMenu extends StatelessWidget {
     required BuildContext context,
     required IconData icon,
     required String title,
+    int? badgeCount,
   }) {
-    final isSelected = selectedTitle == title;
+    final isSelected = widget.selectedTitle == title;
     return ListTile(
-      leading: Icon(icon, color: isSelected ? primaryColor : Colors.grey[700]),
-      title: Text(
-        title,
-        style: TextStyle(
-          color: isSelected ? primaryColor : Colors.black,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-        ),
+      leading: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Icon(icon, color: isSelected ? primaryColor : Colors.grey[700]),
+          if (badgeCount != null && badgeCount > 0)
+            Positioned(
+              right: -8,
+              top: -8,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                constraints: const BoxConstraints(
+                  minWidth: 16,
+                  minHeight: 16,
+                ),
+                child: Text(
+                  badgeCount.toString(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        ],
+      ),
+      title: Row(
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              color: isSelected ? primaryColor : Colors.black,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+          if (badgeCount != null && badgeCount > 0) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                badgeCount.toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
       selected: isSelected,
-      onTap: () => _navigateTo(context, title),
+      onTap: () {
+        if (title == 'Ratings') {
+          _updatePendingRatingsCount();
+        }
+        _navigateTo(context, title);
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    // Update pending ratings count when drawer is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updatePendingRatingsCount();
+    });
+
     return Drawer(
       child: SafeArea(
         child: Container(
@@ -173,7 +268,12 @@ class SidebarMenu extends StatelessWidget {
                     _buildMenuItem(context: context, icon: Icons.inventory, title: 'Inventory'),
                     _buildMenuItem(context: context, icon: Icons.store, title: 'Marketplace'),
                     _buildMenuItem(context: context, icon: Icons.payment, title: 'Payroll'),
-                    _buildMenuItem(context: context, icon: Icons.star, title: 'Ratings'),
+                    _buildMenuItem(
+                      context: context,
+                      icon: Icons.star,
+                      title: 'Ratings',
+                      badgeCount: pendingRatingsCount,
+                    ),
                     _buildMenuItem(context: context, icon: Icons.person, title: 'Profile'),
                   ],
                 ),
@@ -185,12 +285,12 @@ class SidebarMenu extends StatelessWidget {
                   child: const Icon(Icons.person, color: Colors.grey),
                 ),
                 title: Text(
-                  userName,
+                  widget.userName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 subtitle: Text(
-                  userPosition,
+                  widget.userPosition,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
