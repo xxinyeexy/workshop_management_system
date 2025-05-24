@@ -188,114 +188,7 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
     });
   }
 
-  // Show rating dialog
-  void _showRatingDialog() {
-    int selectedRating = 0;
-    String comment = '';
-    TextEditingController commentController = TextEditingController();
 
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Write a Review'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Rate this ${widget.role.toLowerCase()}:'),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(5, (index) {
-                        return GestureDetector(
-                          onTap: () {
-                            setDialogState(() {
-                              selectedRating = index + 1;
-                            });
-                          },
-                          child: Icon(
-                            index < selectedRating ? Icons.star : Icons.star_border,
-                            size: 32,
-                            color: Colors.orange,
-                          ),
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: commentController,
-                      decoration: const InputDecoration(
-                        hintText: 'Write your review (optional)',
-                        border: OutlineInputBorder(),
-                      ),
-                      maxLines: 3,
-                      onChanged: (value) {
-                        comment = value;
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: selectedRating > 0 ? () {
-                    _submitRating(selectedRating, comment);
-                    Navigator.of(context).pop();
-                  } : null,
-                  child: const Text('Submit'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  // Submit rating to Firestore
-  Future<void> _submitRating(int rating, String comment) async {
-    try {
-      User? currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null || widget.userData == null) return;
-
-      await FirebaseFirestore.instance.collection('ratings').add({
-        'reviewerId': currentUser.uid,
-        'ratedUserId': widget.userData!['uid'],
-        'rating': rating,
-        'comment': comment,
-        'createdAt': Timestamp.now(),
-        'likes': 0,
-      });
-
-      // Refresh the rating data
-      _fetchRatingData();
-
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Review submitted successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      print('Error submitting rating: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error submitting review. Please try again.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -356,32 +249,7 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
                               widget.role,
                               style: const TextStyle(color: Colors.grey),
                             ),
-                            if (widget.userData != null) ...[
-                              if (widget.userData!['email'] != null)
-                                Text(
-                                  widget.userData!['email'],
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              if (widget.userData!['phone'] != null)
-                                Text(
-                                  'Phone: ${widget.userData!['phone']}',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              if (widget.userData!['address'] != null)
-                                Text(
-                                  'Address: ${widget.userData!['address']}',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                            ],
+                            // No contact information shown for either role
                             const SizedBox(height: 4),
                             if (totalRatings > 0) ...[
                               Row(
@@ -538,31 +406,6 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
                         ),
                       ],
                     ],
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Write review button
-                Center(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      _showRatingDialog();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 30,
-                        vertical: 14,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      backgroundColor: primaryColor,
-                    ),
-                    child: const Text(
-                      "Write a Review",
-                      style: TextStyle(color: Colors.white),
-                    ),
                   ),
                 ),
 

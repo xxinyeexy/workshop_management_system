@@ -216,47 +216,31 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
             name,
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          subtitle: Row(
             children: [
-              if (isForeman && userData['phone'] != null)
+              if (rating > 0) ...[
+                ...List.generate(5, (index) {
+                  return Icon(
+                    index < rating.floor()
+                        ? Icons.star
+                        : index < rating
+                            ? Icons.star_half
+                            : Icons.star_border,
+                    size: 16,
+                    color: Colors.orange,
+                  );
+                }),
+                const SizedBox(width: 6),
                 Text(
-                  'Phone: ${userData['phone']}',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  "(${rating.toStringAsFixed(1)}) $totalRatings reviews",
+                  style: const TextStyle(fontSize: 12),
                 ),
-              if (!isForeman && userData['address'] != null)
-                Text(
-                  'Address: ${userData['address']}',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ] else ...[
+                const Text(
+                  "No ratings yet",
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  if (rating > 0) ...[
-                    ...List.generate(5, (index) {
-                      return Icon(
-                        index < rating.floor()
-                            ? Icons.star
-                            : index < rating
-                                ? Icons.star_half
-                                : Icons.star_border,
-                        size: 16,
-                        color: Colors.orange,
-                      );
-                    }),
-                    const SizedBox(width: 6),
-                    Text(
-                      "(${rating.toStringAsFixed(1)}) $totalRatings reviews",
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ] else ...[
-                    const Text(
-                      "No ratings yet",
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                  ],
-                ],
-              ),
+              ],
             ],
           ),
         ),
