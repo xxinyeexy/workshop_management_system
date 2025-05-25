@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 // import 'package:workshop_management_system/modules/registration/views/LoginPage.dart';
 import 'package:workshop_management_system/modules/registration/views/Welcome.dart';
 // import 'package:workshop_management_system/modules/schedule/views/schedule.dart';
 // import 'package:workshop_management_system/modules/rating/views/FindForemanWorkshopPage.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp( 
+    options: DefaultFirebaseOptions.currentPlatform,);
   runApp(const MyApp());
 }
 

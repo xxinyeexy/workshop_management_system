@@ -63,6 +63,27 @@ class _RatingFormPageState extends State<AddRatingFormPage> {
 
       final timestamp = FieldValue.serverTimestamp();
 
+      // Determine roles correctly based on who is reviewing whom
+      final String reviewerRole =
+          widget.role == 'Workshop' ? 'foreman' : 'workshop_owner';
+      final String ratedUserRole =
+          widget.role == 'Workshop' ? 'workshop_owner' : 'foreman';
+
+      // Get the current user's document to get their name
+      final userDoc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(currentUser.uid)
+              .get();
+
+      String reviewerName = 'Unknown User';
+      if (userDoc.exists) {
+        final userData = userDoc.data();
+        if (userData != null) {
+          reviewerName = userData['fullName'] ?? 'Unknown User';
+        }
+      }
+
       // Create the rating document
       final ratingData = {
         'reviewerId': currentUser.uid,
@@ -71,13 +92,10 @@ class _RatingFormPageState extends State<AddRatingFormPage> {
         'comment': _reviewController.text.trim(),
         'createdAt': timestamp,
         'updatedAt': timestamp,
-        'reviewerRole':
-            widget.userData!['role'] == 'workshop_owner'
-                ? 'workshop_owner'
-                : 'foreman',
-        'ratedUserRole': widget.userData!['role'],
-        'reviewerName': currentUser.displayName ?? 'Unknown User',
-        'ratedUserName': widget.userData!['fullName'],
+        'reviewerRole': reviewerRole,
+        'ratedUserRole': ratedUserRole,
+        'reviewerName': reviewerName,
+        'ratedUserName': widget.name,
         'type': 'given',
       };
 
