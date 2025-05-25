@@ -41,7 +41,7 @@ class _RatingListPageState extends State<RatingListPage>
 
     toRateItems = List<Map<String, dynamic>>.from(widget.toRateList);
     myReviews = [];
-    
+
     _loadPendingRatings();
     _loadMyReviews();
   }
@@ -55,24 +55,29 @@ class _RatingListPageState extends State<RatingListPage>
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null) return;
 
-      // Fetch ratings where the current user is the reviewer
-      final QuerySnapshot ratingsSnapshot = await FirebaseFirestore.instance
-          .collection('ratings')
-          .where('reviewerId', isEqualTo: currentUser.uid)
-          .orderBy('createdAt', descending: true)
-          .get();
+      // Fetch all ratings where the current user is the reviewer
+      final QuerySnapshot givenRatingsSnapshot =
+          await FirebaseFirestore.instance
+              .collection('ratings')
+              .where('reviewerId', isEqualTo: currentUser.uid)
+              .orderBy('createdAt', descending: true)
+              .get();
 
       List<Map<String, dynamic>> loadedReviews = [];
 
-      for (var doc in ratingsSnapshot.docs) {
+      // Process ratings given by the user
+      for (var doc in givenRatingsSnapshot.docs) {
         Map<String, dynamic> ratingData = doc.data() as Map<String, dynamic>;
-        
+
         // Fetch rated user's details
-        DocumentSnapshot userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(ratingData['ratedUserId'])
-            .get();
-        
+        DocumentSnapshot userDoc =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(ratingData['ratedUserId'])
+                .get();
+
+        if (!userDoc.exists) continue;
+
         Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
 
         // Convert Timestamp to formatted date string
@@ -86,7 +91,52 @@ class _RatingListPageState extends State<RatingListPage>
           'rating': ratingData['rating'] ?? 0.0,
           'review': ratingData['comment'] ?? '',
           'uid': ratingData['ratedUserId'],
-          'documentId': doc.id, // Store the document ID for potential updates
+          'documentId': doc.id,
+          'type': 'given', // Mark as a rating given by the user
+          'reviewerRole': ratingData['reviewerRole'],
+          'ratedUserRole': ratingData['ratedUserRole'],
+        });
+      }
+
+      // Fetch all ratings where the current user is the one being rated
+      final QuerySnapshot receivedRatingsSnapshot =
+          await FirebaseFirestore.instance
+              .collection('ratings')
+              .where('ratedUserId', isEqualTo: currentUser.uid)
+              .orderBy('createdAt', descending: true)
+              .get();
+
+      // Process ratings received by the user
+      for (var doc in receivedRatingsSnapshot.docs) {
+        Map<String, dynamic> ratingData = doc.data() as Map<String, dynamic>;
+
+        // Fetch reviewer's details
+        DocumentSnapshot reviewerDoc =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(ratingData['reviewerId'])
+                .get();
+
+        if (!reviewerDoc.exists) continue;
+
+        Map<String, dynamic> reviewerData =
+            reviewerDoc.data() as Map<String, dynamic>;
+
+        // Convert Timestamp to formatted date string
+        Timestamp timestamp = ratingData['createdAt'] as Timestamp;
+        String formattedDate = _formatDate(timestamp);
+
+        loadedReviews.add({
+          'initials': _getInitials(reviewerData['fullName'] ?? 'Unknown'),
+          'name': reviewerData['fullName'] ?? 'Unknown',
+          'date': formattedDate,
+          'rating': ratingData['rating'] ?? 0.0,
+          'review': ratingData['comment'] ?? '',
+          'uid': ratingData['reviewerId'],
+          'documentId': doc.id,
+          'type': 'received', // Mark as a rating received by the user
+          'reviewerRole': ratingData['reviewerRole'],
+          'ratedUserRole': ratingData['ratedUserRole'],
         });
       }
 
@@ -115,7 +165,8 @@ class _RatingListPageState extends State<RatingListPage>
     List<String> nameParts = fullName.split(' ');
     if (nameParts.isEmpty) return 'U';
     if (nameParts.length == 1) return nameParts[0][0].toUpperCase();
-    return '${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}'.toUpperCase();
+    return '${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}'
+        .toUpperCase();
   }
 
   void _loadPendingRatings() {
@@ -376,6 +427,16 @@ class _RatingListPageState extends State<RatingListPage>
   }
 
   Widget _buildMyReviewCard(Map<String, dynamic> review) {
+    bool isGivenReview = review['type'] == 'given';
+    String roleText =
+        isGivenReview
+            ? (review['ratedUserRole'] == 'workshop_owner'
+                ? 'Workshop Owner'
+                : 'Foreman')
+            : (review['reviewerRole'] == 'workshop_owner'
+                ? 'Workshop Owner'
+                : 'Foreman');
+
     return Card(
       elevation: 2,
       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -406,6 +467,29 @@ class _RatingListPageState extends State<RatingListPage>
                           fontSize: 16,
                         ),
                       ),
+                      Row(
+                        children: [
+                          Text(
+                            roleText,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            isGivenReview
+                                ? "• Rating given"
+                                : "• Rating received",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isGivenReview ? Colors.blue : Colors.green,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
                       Text(
                         "Reviewed on ${review['date']}",
                         style: const TextStyle(
@@ -431,52 +515,69 @@ class _RatingListPageState extends State<RatingListPage>
             ),
             const SizedBox(height: 8),
             Text(review['review']),
-            const SizedBox(height: 6),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () async {
-                  final updatedReview = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => EditRatingFormPage(
-                        initials: review['initials'],
-                        name: review['name'],
-                        role: widget.userRole == 'foreman' ? 'Workshop' : 'Foreman',
-                        initialRating: review['rating'],
-                        initialReview: review['review'],
+            if (isGivenReview) ...[
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () async {
+                    final updatedReview = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (context) => EditRatingFormPage(
+                              initials: review['initials'],
+                              name: review['name'],
+                              role:
+                                  widget.userRole == 'foreman'
+                                      ? 'Workshop'
+                                      : 'Foreman',
+                              initialRating: review['rating'],
+                              initialReview: review['review'],
+                            ),
                       ),
-                    ),
-                  );
+                    );
 
-                  if (updatedReview != null) {
-                    // Update the rating in Firebase
-                    try {
-                      await FirebaseFirestore.instance
-                          .collection('ratings')
-                          .doc(review['documentId'])
-                          .update({
-                        'rating': updatedReview['rating'],
-                        'comment': updatedReview['review'],
-                        'updatedAt': FieldValue.serverTimestamp(),
-                      });
+                    if (updatedReview != null) {
+                      try {
+                        await FirebaseFirestore.instance
+                            .collection('ratings')
+                            .doc(review['documentId'])
+                            .update({
+                              'rating': updatedReview['rating'],
+                              'comment': updatedReview['review'],
+                              'updatedAt': FieldValue.serverTimestamp(),
+                            });
 
-                      // Refresh the reviews list
-                      _loadMyReviews();
-                    } catch (e) {
-                      print('Error updating review: $e');
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Error updating review. Please try again.'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
+                        _loadMyReviews();
+
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Review updated successfully'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        print('Error updating review: $e');
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Error updating review. Please try again.',
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
                     }
-                  }
-                },
-                child: const Text("Edit Review"),
+                  },
+                  child: const Text("Edit Review"),
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -556,114 +657,120 @@ class _RatingListPageState extends State<RatingListPage>
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TabBar(
-            controller: _tabController,
-            labelColor: _primaryColor,
-            unselectedLabelColor: Colors.grey,
-            indicatorColor: _primaryColor,
-            indicatorWeight: 2,
-            tabs: [
-              Tab(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text("To Rate"),
-                    if (toRateItems.isNotEmpty) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '${toRateItems.length}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              Tab(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text("Rating History"),
-                    if (myReviews.isNotEmpty) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _primaryColor,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '${myReviews.length}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildCategoryChip(),
-                    Expanded(
-                      child:
-                          toRateItems.isEmpty
-                              ? _buildEmptyState(true)
-                              : ListView(
-                                padding: const EdgeInsets.all(16),
-                                children:
-                                    toRateItems
-                                        .map((item) => _buildToRateCard(item))
-                                        .toList(),
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TabBar(
+                    controller: _tabController,
+                    labelColor: _primaryColor,
+                    unselectedLabelColor: Colors.grey,
+                    indicatorColor: _primaryColor,
+                    indicatorWeight: 2,
+                    tabs: [
+                      Tab(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text("To Rate"),
+                            if (toRateItems.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '${toRateItems.length}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      Tab(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text("Rating History"),
+                            if (myReviews.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _primaryColor,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '${myReviews.length}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildCategoryChip(),
+                            Expanded(
+                              child:
+                                  toRateItems.isEmpty
+                                      ? _buildEmptyState(true)
+                                      : ListView(
+                                        padding: const EdgeInsets.all(16),
+                                        children:
+                                            toRateItems
+                                                .map(
+                                                  (item) =>
+                                                      _buildToRateCard(item),
+                                                )
+                                                .toList(),
+                                      ),
+                            ),
+                          ],
+                        ),
+                        myReviews.isEmpty
+                            ? _buildEmptyState(false)
+                            : ListView(
+                              padding: const EdgeInsets.all(16),
+                              children:
+                                  myReviews
+                                      .map(
+                                        (review) => _buildMyReviewCard(review),
+                                      )
+                                      .toList(),
+                            ),
+                      ],
                     ),
-                  ],
-                ),
-                myReviews.isEmpty
-                    ? _buildEmptyState(false)
-                    : ListView(
-                      padding: const EdgeInsets.all(16),
-                      children:
-                          myReviews
-                              .map((review) => _buildMyReviewCard(review))
-                              .toList(),
-                    ),
-              ],
-            ),
-          ),
-        ],
-      ),
+                  ),
+                ],
+              ),
     );
   }
 }
