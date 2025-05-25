@@ -8,10 +8,13 @@ import 'package:workshop_management_system/modules/rating/views/RatingListPage.d
 /// * Pass `userRole: 'foreman'`  →  green theme.
 /// * Pass `userRole: 'workshop'` →  blue theme.
 class FindForemanWorkshopPage extends StatefulWidget {
-  final String userRole; // This is for the page's internal logic ('foreman' or 'workshop')
+  final String
+  userRole; // This is for the page's internal logic ('foreman' or 'workshop')
   final String userName;
-  final String? originalUserRole; // This is the original role string ('foreman', 'workshop owner', etc.)
-  final String? userPosition; // This is the display position ('Foreman', 'Workshop Owner')
+  final String?
+  originalUserRole; // This is the original role string ('foreman', 'workshop owner', etc.)
+  final String?
+  userPosition; // This is the display position ('Foreman', 'Workshop Owner')
   final UserRole? enumUserRole; // This is the UserRole enum
 
   const FindForemanWorkshopPage({
@@ -31,7 +34,7 @@ class FindForemanWorkshopPage extends StatefulWidget {
 class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
-  
+
   // Lists to store users from Firestore
   List<Map<String, dynamic>> foremen = [];
   List<Map<String, dynamic>> workshops = [];
@@ -98,9 +101,8 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
       });
 
       // Fetch all users from Firestore
-      QuerySnapshot usersSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .get();
+      QuerySnapshot usersSnapshot =
+          await FirebaseFirestore.instance.collection('users').get();
 
       List<Map<String, dynamic>> tempForemen = [];
       List<Map<String, dynamic>> tempWorkshops = [];
@@ -138,10 +140,11 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
   // Get user's rating data from Firestore
   Future<Map<String, dynamic>> _getUserRatingData(String userId) async {
     try {
-      QuerySnapshot ratingsSnapshot = await FirebaseFirestore.instance
-          .collection('ratings')
-          .where('ratedUserId', isEqualTo: userId)
-          .get();
+      QuerySnapshot ratingsSnapshot =
+          await FirebaseFirestore.instance
+              .collection('ratings')
+              .where('ratedUserId', isEqualTo: userId)
+              .get();
 
       if (ratingsSnapshot.docs.isEmpty) {
         return {'averageRating': 0.0, 'totalRatings': 0};
@@ -157,10 +160,7 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
 
       double averageRating = totalRating / count;
 
-      return {
-        'averageRating': averageRating,
-        'totalRatings': count,
-      };
+      return {'averageRating': averageRating, 'totalRatings': count};
     } catch (e) {
       print('Error fetching rating data: $e');
       return {'averageRating': 0.0, 'totalRatings': 0};
@@ -196,14 +196,15 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => RatingDetailPage(
-                  initials: initials,
-                  name: name,
-                  role: isForeman ? "Foreman" : "Workshop Owner",
-                  userData: userData, // Pass user data for rating
-                ),
+                builder:
+                    (_) => RatingDetailPage(
+                      initials: initials,
+                      name: name,
+                      role: isForeman ? "Foreman" : "Workshop Owner",
+                      userData: userData, // Pass the complete user data
+                    ),
               ),
-            );
+            ).then((_) => _fetchUsers()); // Refresh the list after returning
           },
           leading: CircleAvatar(
             backgroundColor: Colors.grey[300],
@@ -224,8 +225,8 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
                     index < rating.floor()
                         ? Icons.star
                         : index < rating
-                            ? Icons.star_half
-                            : Icons.star_border,
+                        ? Icons.star_half
+                        : Icons.star_border,
                     size: 16,
                     color: Colors.orange,
                   );
@@ -252,9 +253,7 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
     List<Map<String, dynamic>> items = isForeman ? foremen : workshops;
 
     if (isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (items.isEmpty) {
@@ -269,7 +268,7 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
             ),
             const SizedBox(height: 16),
             Text(
-              isForeman 
+              isForeman
                   ? 'No foremen registered yet'
                   : 'No workshops registered yet',
               style: TextStyle(
@@ -299,9 +298,10 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
   @override
   Widget build(BuildContext context) {
     // Determine workshopName for passing to RatingListPage
-    String workshopName = widget.userRole.toLowerCase() == 'workshop'
-        ? widget.userName
-        : 'Ali Workshop'; // Replace with your actual foreman's workshop lookup if possible
+    String workshopName =
+        widget.userRole.toLowerCase() == 'workshop'
+            ? widget.userName
+            : 'Ali Workshop'; // Replace with your actual foreman's workshop lookup if possible
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
@@ -309,12 +309,13 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
         backgroundColor: primaryColor,
         elevation: 0,
         leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onPressed: () {
-              Scaffold.of(context).openDrawer();
-            },
-          ),
+          builder:
+              (context) => IconButton(
+                icon: const Icon(Icons.menu, color: Colors.white),
+                onPressed: () {
+                  Scaffold.of(context).openDrawer();
+                },
+              ),
         ),
         title: const Text(
           "Find Foreman / Workshop",
@@ -326,13 +327,39 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => RatingListPage(
-                    userRole: widget.userRole.toLowerCase(),
-                    userName: widget.userName,
-                    workshopName: workshopName,
-                    toRateList: [], // pass your real data here
-                    myReviewsList: [],
-                  ),
+                  builder:
+                      (_) => RatingListPage(
+                        userRole: widget.userRole.toLowerCase(),
+                        userName: widget.userName,
+                        workshopName: workshopName,
+                        toRateList:
+                            widget.userRole.toLowerCase() == 'foreman'
+                                ? workshops
+                                    .map(
+                                      (w) => {
+                                        'initials': _getInitials(
+                                          w['fullName'] ?? '',
+                                        ),
+                                        'name': w['fullName'],
+                                        'uid': w['uid'],
+                                        'role': 'workshop_owner',
+                                      },
+                                    )
+                                    .toList()
+                                : foremen
+                                    .map(
+                                      (f) => {
+                                        'initials': _getInitials(
+                                          f['fullName'] ?? '',
+                                        ),
+                                        'name': f['fullName'],
+                                        'uid': f['uid'],
+                                        'role': 'foreman',
+                                      },
+                                    )
+                                    .toList(),
+                        myReviewsList: [],
+                      ),
                 ),
               );
             },
@@ -349,11 +376,16 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
         ],
       ),
       drawer: SidebarMenu(
-        userRole: widget.enumUserRole ?? _getUserRole(widget.originalUserRole ?? widget.userRole),
+        userRole:
+            widget.enumUserRole ??
+            _getUserRole(widget.originalUserRole ?? widget.userRole),
         userName: widget.userName,
-        userPosition: widget.userPosition ?? _getUserPosition(widget.originalUserRole ?? widget.userRole),
+        userPosition:
+            widget.userPosition ??
+            _getUserPosition(widget.originalUserRole ?? widget.userRole),
         selectedTitle: 'Ratings',
-        originalUserRole: widget.originalUserRole ?? _getOriginalUserRole(widget.userRole),
+        originalUserRole:
+            widget.originalUserRole ?? _getOriginalUserRole(widget.userRole),
         onSelectedTitleChanged: (title) {},
       ),
       body: SafeArea(
@@ -393,10 +425,7 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
                 Expanded(
                   child: TabBarView(
                     controller: _tabController,
-                    children: [
-                      _buildTabContent(true), 
-                      _buildTabContent(false)
-                    ],
+                    children: [_buildTabContent(true), _buildTabContent(false)],
                   ),
                 ),
               ],

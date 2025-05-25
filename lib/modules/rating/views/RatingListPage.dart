@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:workshop_management_system/modules/rating/views/EditRatingForm.dart';
 import 'package:workshop_management_system/modules/rating/views/AddRatingForm.dart';
 import 'package:workshop_management_system/modules/schedule/views/schedule.dart'; // Import RatingService
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class RatingListPage extends StatefulWidget {
   final String userRole; // 'foreman' or 'workshop'
   final String userName; // logged-in user name
-  final String workshopName; // logged-in user’s workshop name
+  final String workshopName; // logged-in user's workshop name
   final List<Map<String, dynamic>> toRateList;
   final List<Map<String, dynamic>> myReviewsList;
 
@@ -23,11 +25,13 @@ class RatingListPage extends StatefulWidget {
   State<RatingListPage> createState() => _RatingListPageState();
 }
 
-class _RatingListPageState extends State<RatingListPage> with SingleTickerProviderStateMixin {
+class _RatingListPageState extends State<RatingListPage>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late List<Map<String, dynamic>> toRateItems;
   late List<Map<String, dynamic>> myReviews;
   late String _selectedCategory;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -36,9 +40,82 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
     _selectedCategory = widget.userRole == 'foreman' ? 'Workshops' : 'Foremen';
 
     toRateItems = List<Map<String, dynamic>>.from(widget.toRateList);
-    myReviews = List<Map<String, dynamic>>.from(widget.myReviewsList);
-
+    myReviews = [];
+    
     _loadPendingRatings();
+    _loadMyReviews();
+  }
+
+  Future<void> _loadMyReviews() async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
+      // Fetch ratings where the current user is the reviewer
+      final QuerySnapshot ratingsSnapshot = await FirebaseFirestore.instance
+          .collection('ratings')
+          .where('reviewerId', isEqualTo: currentUser.uid)
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      List<Map<String, dynamic>> loadedReviews = [];
+
+      for (var doc in ratingsSnapshot.docs) {
+        Map<String, dynamic> ratingData = doc.data() as Map<String, dynamic>;
+        
+        // Fetch rated user's details
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(ratingData['ratedUserId'])
+            .get();
+        
+        Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+
+        // Convert Timestamp to formatted date string
+        Timestamp timestamp = ratingData['createdAt'] as Timestamp;
+        String formattedDate = _formatDate(timestamp);
+
+        loadedReviews.add({
+          'initials': _getInitials(userData['fullName'] ?? 'Unknown'),
+          'name': userData['fullName'] ?? 'Unknown',
+          'date': formattedDate,
+          'rating': ratingData['rating'] ?? 0.0,
+          'review': ratingData['comment'] ?? '',
+          'uid': ratingData['ratedUserId'],
+          'documentId': doc.id, // Store the document ID for potential updates
+        });
+      }
+
+      if (mounted) {
+        setState(() {
+          myReviews = loadedReviews;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading reviews: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  String _formatDate(Timestamp timestamp) {
+    DateTime date = timestamp.toDate();
+    return '${date.day}/${date.month}/${date.year}';
+  }
+
+  String _getInitials(String fullName) {
+    List<String> nameParts = fullName.split(' ');
+    if (nameParts.isEmpty) return 'U';
+    if (nameParts.length == 1) return nameParts[0][0].toUpperCase();
+    return '${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}'.toUpperCase();
   }
 
   void _loadPendingRatings() {
@@ -49,9 +126,12 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
     );
     setState(() {
       for (final pending in pendingRatings) {
-        final exists = toRateItems.any((item) =>
-            item['contractId'] == pending['contractId'] ||
-            (item['name'] == pending['name'] && item['initials'] == pending['initials']));
+        final exists = toRateItems.any(
+          (item) =>
+              item['contractId'] == pending['contractId'] ||
+              (item['name'] == pending['name'] &&
+                  item['initials'] == pending['initials']),
+        );
         if (!exists) {
           toRateItems.add(pending);
         }
@@ -63,10 +143,13 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
   void didChangeDependencies() {
     super.didChangeDependencies();
     _loadPendingRatings();
+    _loadMyReviews();
   }
 
   Color get _primaryColor {
-    return widget.userRole == 'foreman' ? const Color(0xFF2FB668) : const Color(0xFF4260DB);
+    return widget.userRole == 'foreman'
+        ? const Color(0xFF2FB668)
+        : const Color(0xFF4260DB);
   }
 
   Widget _buildToRateCard(Map<String, dynamic> item) {
@@ -85,26 +168,41 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
               children: [
                 CircleAvatar(
                   backgroundColor: Colors.grey[300],
-                  child: Text(item['initials'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                  child: Text(
+                    item['initials'],
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(item['name'], style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+                      Text(
+                        item['name'],
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
                       Text(
                         isFromTerminatedContract
                             ? "Contract terminated on ${item['date']}"
                             : "Service completed on ${item['date']}",
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 if (isFromTerminatedContract)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.orange[100],
                       borderRadius: BorderRadius.circular(12),
@@ -124,9 +222,15 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isFromTerminatedContract ? Colors.orange[50] : Colors.yellow[100],
+                color:
+                    isFromTerminatedContract
+                        ? Colors.orange[50]
+                        : Colors.yellow[100],
                 borderRadius: BorderRadius.circular(8),
-                border: isFromTerminatedContract ? Border.all(color: Colors.orange[200]!) : null,
+                border:
+                    isFromTerminatedContract
+                        ? Border.all(color: Colors.orange[200]!)
+                        : null,
               ),
               child: Row(
                 children: [
@@ -150,11 +254,23 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
                       final newReview = await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => AddRatingFormPage(
-                            initials: item['initials'],
-                            name: item['name'],
-                            role: widget.userRole == 'foreman' ? "Workshop" : "Foreman",
-                          ),
+                          builder:
+                              (context) => AddRatingFormPage(
+                                initials: item['initials'],
+                                name: item['name'],
+                                role:
+                                    widget.userRole == 'foreman'
+                                        ? "Workshop"
+                                        : "Foreman",
+                                userData: {
+                                  'uid': item['uid'],
+                                  'fullName': item['name'],
+                                  'role':
+                                      widget.userRole == 'foreman'
+                                          ? 'workshop_owner'
+                                          : 'foreman',
+                                },
+                              ),
                         ),
                       );
 
@@ -171,9 +287,10 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                                isFromTerminatedContract
-                                    ? 'Rating submitted for terminated contract'
-                                    : 'Rating submitted successfully'),
+                              isFromTerminatedContract
+                                  ? 'Rating submitted for terminated contract'
+                                  : 'Rating submitted successfully',
+                            ),
                             backgroundColor: Colors.green,
                             duration: const Duration(seconds: 2),
                           ),
@@ -182,8 +299,13 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _primaryColor,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -201,41 +323,48 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
                     onPressed: () {
                       showDialog(
                         context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Skip Rating'),
-                          content: const Text(
-                            'Are you sure you want to skip rating this partner? You can still rate them later if needed.',
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('Cancel'),
+                        builder:
+                            (context) => AlertDialog(
+                              title: const Text('Skip Rating'),
+                              content: const Text(
+                                'Are you sure you want to skip rating this partner? You can still rate them later if needed.',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    setState(() {
+                                      toRateItems.remove(item);
+                                      RatingService().removePendingRating(item);
+                                    });
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Rating skipped'),
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
+                                  },
+                                  child: const Text('Skip'),
+                                ),
+                              ],
                             ),
-                            TextButton(
-                              onPressed: () {
-                                Navigator.pop(context);
-                                setState(() {
-                                  toRateItems.remove(item);
-                                  RatingService().removePendingRating(item);
-                                });
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Rating skipped'),
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
-                              },
-                              child: const Text('Skip'),
-                            ),
-                          ],
-                        ),
                       );
                     },
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: Colors.grey[400]!),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
-                    child: const Text('Skip', style: TextStyle(color: Colors.grey)),
+                    child: const Text(
+                      'Skip',
+                      style: TextStyle(color: Colors.grey),
+                    ),
                   ),
                 ],
               ],
@@ -260,34 +389,33 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
               children: [
                 CircleAvatar(
                   backgroundColor: Colors.grey[300],
-                  child: Text(review['initials'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                  child: Text(
+                    review['initials'],
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(review['name'], style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-                      Text("Reviewed on ${review['date']}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                      Text(
+                        review['name'],
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        "Reviewed on ${review['date']}",
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                if (review.containsKey('contractTerminated') && review['contractTerminated'] == true)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.orange[100],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      'Contract End',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.orange[700],
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
               ],
             ),
             const SizedBox(height: 8),
@@ -295,11 +423,7 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
               children: List.generate(5, (index) {
                 double rating = review['rating'];
                 return Icon(
-                  index < rating.floor()
-                      ? Icons.star
-                      : index < rating
-                          ? Icons.star_half
-                          : Icons.star_border,
+                  index < rating ? Icons.star : Icons.star_border,
                   size: 20,
                   color: Colors.orange[700],
                 );
@@ -326,19 +450,33 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
                   );
 
                   if (updatedReview != null) {
-                    setState(() {
-                      final index = myReviews.indexWhere((r) =>
-                          r['initials'] == updatedReview['initials'] &&
-                          r['name'] == updatedReview['name']);
-                      if (index != -1) {
-                        myReviews[index] = updatedReview;
-                      }
-                    });
+                    // Update the rating in Firebase
+                    try {
+                      await FirebaseFirestore.instance
+                          .collection('ratings')
+                          .doc(review['documentId'])
+                          .update({
+                        'rating': updatedReview['rating'],
+                        'comment': updatedReview['review'],
+                        'updatedAt': FieldValue.serverTimestamp(),
+                      });
+
+                      // Refresh the reviews list
+                      _loadMyReviews();
+                    } catch (e) {
+                      print('Error updating review: $e');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Error updating review. Please try again.'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
                   }
                 },
                 child: const Text("Edit Review"),
               ),
-            )
+            ),
           ],
         ),
       ),
@@ -350,7 +488,10 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
       margin: const EdgeInsets.only(left: 16, top: 8),
       child: Chip(
         backgroundColor: _primaryColor,
-        label: Text(_selectedCategory, style: const TextStyle(color: Colors.white)),
+        label: Text(
+          _selectedCategory,
+          style: const TextStyle(color: Colors.white),
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
     );
@@ -383,9 +524,7 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
                   ? 'When contracts are completed or terminated, rating requests will appear here.'
                   : 'Your completed ratings will appear here.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey[500],
-              ),
+              style: TextStyle(color: Colors.grey[500]),
             ),
           ],
         ),
@@ -406,9 +545,10 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
             icon: const Icon(Icons.refresh),
             onPressed: () {
               _loadPendingRatings();
+              _loadMyReviews();
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Refreshed pending ratings'),
+                  content: Text('Refreshing ratings...'),
                   duration: Duration(seconds: 1),
                 ),
               );
@@ -416,7 +556,9 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
           ),
         ],
       ),
-      body: Column(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TabBar(
@@ -434,7 +576,10 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
                     if (toRateItems.isNotEmpty) ...[
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.red,
                           borderRadius: BorderRadius.circular(10),
@@ -460,7 +605,10 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
                     if (myReviews.isNotEmpty) ...[
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: _primaryColor,
                           borderRadius: BorderRadius.circular(10),
@@ -489,21 +637,28 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
                   children: [
                     _buildCategoryChip(),
                     Expanded(
-                      child: toRateItems.isEmpty
-                          ? _buildEmptyState(true)
-                          : ListView(
-                              padding: const EdgeInsets.all(16),
-                              children: toRateItems.map((item) => _buildToRateCard(item)).toList(),
-                            ),
+                      child:
+                          toRateItems.isEmpty
+                              ? _buildEmptyState(true)
+                              : ListView(
+                                padding: const EdgeInsets.all(16),
+                                children:
+                                    toRateItems
+                                        .map((item) => _buildToRateCard(item))
+                                        .toList(),
+                              ),
                     ),
                   ],
                 ),
                 myReviews.isEmpty
                     ? _buildEmptyState(false)
                     : ListView(
-                        padding: const EdgeInsets.all(16),
-                        children: myReviews.map((review) => _buildMyReviewCard(review)).toList(),
-                      ),
+                      padding: const EdgeInsets.all(16),
+                      children:
+                          myReviews
+                              .map((review) => _buildMyReviewCard(review))
+                              .toList(),
+                    ),
               ],
             ),
           ),
