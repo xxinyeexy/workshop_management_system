@@ -61,33 +61,41 @@ class _RatingFormPageState extends State<AddRatingFormPage> {
         return;
       }
 
+      final timestamp = FieldValue.serverTimestamp();
+
       // Create the rating document
       final ratingData = {
         'reviewerId': currentUser.uid,
         'ratedUserId': widget.userData!['uid'],
         'rating': _rating,
         'comment': _reviewController.text.trim(),
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
+        'createdAt': timestamp,
+        'updatedAt': timestamp,
         'reviewerRole':
-            currentUser.uid == widget.userData!['uid']
+            widget.userData!['role'] == 'workshop_owner'
                 ? 'workshop_owner'
                 : 'foreman',
         'ratedUserRole': widget.userData!['role'],
+        'reviewerName': currentUser.displayName ?? 'Unknown User',
+        'ratedUserName': widget.userData!['fullName'],
+        'type': 'given',
       };
 
       // Save to Firestore
-      await FirebaseFirestore.instance.collection('ratings').add(ratingData);
+      final docRef = await FirebaseFirestore.instance
+          .collection('ratings')
+          .add(ratingData);
+
+      // Get the actual document with server timestamp
+      final actualDoc = await docRef.get();
+      final actualData = actualDoc.data() as Map<String, dynamic>;
 
       // Return the rating data to the previous screen
       if (mounted) {
         Navigator.pop(context, {
-          'initials': widget.initials,
-          'name': widget.name,
-          'date': DateTime.now().toString().split(' ')[0],
-          'rating': _rating,
-          'review': _reviewController.text,
-          'uid': widget.userData!['uid'],
+          ...actualData,
+          'documentId': docRef.id,
+          'type': 'given',
         });
       }
     } catch (e) {

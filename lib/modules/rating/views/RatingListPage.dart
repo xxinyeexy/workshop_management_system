@@ -87,65 +87,44 @@ class _RatingListPageState extends State<RatingListPage>
         return;
       }
 
-      final givenRatingsSnapshot = await FirebaseFirestore.instance
-          .collection('ratings')
-          .where('reviewerId', isEqualTo: currentUser.uid)
-          .orderBy('createdAt', descending: true)
-          .get();
+      // Get both given and received ratings
+      final givenRatings =
+          await FirebaseFirestore.instance
+              .collection('ratings')
+              .where('reviewerId', isEqualTo: currentUser.uid)
+              .get();
 
-      final receivedRatingsSnapshot = await FirebaseFirestore.instance
-          .collection('ratings')
-          .where('ratedUserId', isEqualTo: currentUser.uid)
-          .orderBy('createdAt', descending: true)
-          .get();
+      final receivedRatings =
+          await FirebaseFirestore.instance
+              .collection('ratings')
+              .where('ratedUserId', isEqualTo: currentUser.uid)
+              .get();
 
       List<Map<String, dynamic>> loadedReviews = [];
 
-      for (var doc in givenRatingsSnapshot.docs) {
-        Map<String, dynamic> data = doc.data();
-        var userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(data['ratedUserId'])
-            .get();
-        if (!userDoc.exists || userDoc.data() == null) continue;
-
-        Timestamp ts = data['createdAt'] as Timestamp;
-        loadedReviews.add({
-          'initials': _getInitials(userDoc['fullName']),
-          'name': userDoc['fullName'],
-          'date': _formatDate(ts),
-          'rating': data['rating'],
-          'review': data['comment'],
-          'uid': data['ratedUserId'],
-          'documentId': doc.id,
-          'type': 'given',
-          'reviewerRole': data['reviewerRole'],
-          'ratedUserRole': data['ratedUserRole'],
-        });
+      // Add given ratings
+      for (var doc in givenRatings.docs) {
+        final data = doc.data();
+        loadedReviews.add({...data, 'documentId': doc.id, 'type': 'given'});
       }
 
-      for (var doc in receivedRatingsSnapshot.docs) {
-        Map<String, dynamic> data = doc.data();
-        var reviewerDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(data['reviewerId'])
-            .get();
-        if (!reviewerDoc.exists || reviewerDoc.data() == null) continue;
-
-        Timestamp ts = data['createdAt'] as Timestamp;
-        loadedReviews.add({
-          'initials': _getInitials(reviewerDoc['fullName']),
-          'name': reviewerDoc['fullName'],
-          'date': _formatDate(ts),
-          'rating': data['rating'],
-          'review': data['comment'],
-          'uid': data['reviewerId'],
-          'documentId': doc.id,
-          'type': 'received',
-          'reviewerRole': data['reviewerRole'],
-          'ratedUserRole': data['ratedUserRole'],
-        });
+      // Add received ratings
+      for (var doc in receivedRatings.docs) {
+        final data = doc.data();
+        loadedReviews.add({...data, 'documentId': doc.id, 'type': 'received'});
       }
+
+      // Sort by createdAt timestamp, handling null values
+      loadedReviews.sort((a, b) {
+        final aTime = a['createdAt'] as Timestamp?;
+        final bTime = b['createdAt'] as Timestamp?;
+
+        if (aTime == null && bTime == null) return 0;
+        if (aTime == null) return 1;
+        if (bTime == null) return -1;
+
+        return bTime.compareTo(aTime); // Most recent first
+      });
 
       if (mounted) {
         setState(() {
@@ -154,23 +133,27 @@ class _RatingListPageState extends State<RatingListPage>
         });
       }
     } catch (e) {
-      print("Review loading error: $e");
+      print("Error loading reviews: $e");
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+          myReviews = [];
+        });
       }
     }
   }
 
-  String _getInitials(String fullName) {
-    List<String> parts = fullName.trim().split(' ');
-    if (parts.isEmpty) return '?';
-    if (parts.length == 1) return parts[0][0].toUpperCase();
-    return '${parts[0][0]}${parts.last[0]}'.toUpperCase();
+  String _formatDate(Timestamp? timestamp) {
+    if (timestamp == null) return 'No date';
+    final date = timestamp.toDate();
+    return '${date.day}/${date.month}/${date.year}';
   }
 
-  String _formatDate(Timestamp timestamp) {
-    final d = timestamp.toDate();
-    return '${d.day}/${d.month}/${d.year}';
+  String _getInitials(String name) {
+    if (name.isEmpty) return '?';
+    final parts = name.split(' ');
+    if (parts.length == 1) return parts[0][0].toUpperCase();
+    return '${parts[0][0]}${parts.last[0]}'.toUpperCase();
   }
 
   String _formattedDate(dynamic rawDate) {
@@ -179,13 +162,18 @@ class _RatingListPageState extends State<RatingListPage>
   }
 
   Color get _primaryColor =>
-      widget.userRole == 'foreman' ? const Color(0xFF2FB668) : const Color(0xFF4260DB);
+      widget.userRole == 'foreman'
+          ? const Color(0xFF2FB668)
+          : const Color(0xFF4260DB);
 
   Widget _buildCategoryChip() {
     return Container(
       margin: const EdgeInsets.only(left: 16, top: 8),
       child: Chip(
-        label: Text(_selectedCategory, style: const TextStyle(color: Colors.white)),
+        label: Text(
+          _selectedCategory,
+          style: const TextStyle(color: Colors.white),
+        ),
         backgroundColor: _primaryColor,
       ),
     );
@@ -198,11 +186,19 @@ class _RatingListPageState extends State<RatingListPage>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(isToRate ? Icons.star_outline : Icons.history, size: 64, color: Colors.grey[400]),
+            Icon(
+              isToRate ? Icons.star_outline : Icons.history,
+              size: 64,
+              color: Colors.grey[400],
+            ),
             const SizedBox(height: 16),
             Text(
               isToRate ? 'No pending ratings' : 'No rating history',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.grey[600]),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[600],
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -231,27 +227,50 @@ class _RatingListPageState extends State<RatingListPage>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              CircleAvatar(backgroundColor: Colors.grey[300], child: Text(item['initials'])),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(item['name'], style: const TextStyle(fontWeight: FontWeight.w600)),
-                  Text(
-                    isTerminated
-                        ? 'Contract terminated${_formattedDate(item['date'])}'
-                        : 'Service completed${_formattedDate(item['date'])}',
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
-                  ),
-                ]),
-              ),
-              if (isTerminated)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: Colors.orange[100], borderRadius: BorderRadius.circular(12)),
-                  child: Text('Contract End', style: TextStyle(fontSize: 10, color: Colors.orange[700])),
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Colors.grey[300],
+                  child: Text(item['initials']),
                 ),
-            ]),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item['name'],
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        isTerminated
+                            ? 'Contract terminated${_formattedDate(item['date'])}'
+                            : 'Service completed${_formattedDate(item['date'])}',
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (isTerminated)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.orange[100],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'Contract End',
+                      style: TextStyle(fontSize: 10, color: Colors.orange[700]),
+                    ),
+                  ),
+              ],
+            ),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
@@ -259,11 +278,18 @@ class _RatingListPageState extends State<RatingListPage>
                 color: isTerminated ? Colors.orange[50] : Colors.yellow[100],
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Row(children: [
-                if (isTerminated) Icon(Icons.handshake_outlined, size: 16, color: Colors.orange[700]),
-                if (isTerminated) const SizedBox(width: 8),
-                Expanded(child: Text(item['message'] ?? '')),
-              ]),
+              child: Row(
+                children: [
+                  if (isTerminated)
+                    Icon(
+                      Icons.handshake_outlined,
+                      size: 16,
+                      color: Colors.orange[700],
+                    ),
+                  if (isTerminated) const SizedBox(width: 8),
+                  Expanded(child: Text(item['message'] ?? '')),
+                ],
+              ),
             ),
             const SizedBox(height: 10),
             ElevatedButton(
@@ -271,29 +297,38 @@ class _RatingListPageState extends State<RatingListPage>
                 final newReview = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => AddRatingFormPage(
-                      initials: item['initials'],
-                      name: item['name'],
-                      role: widget.userRole == 'foreman' ? 'Workshop' : 'Foreman',
-                      userData: {
-                        'uid': item['uid'],
-                        'fullName': item['name'],
-                        'role': widget.userRole == 'foreman' ? 'workshop_owner' : 'foreman',
-                      },
-                    ),
+                    builder:
+                        (context) => AddRatingFormPage(
+                          initials: item['initials'],
+                          name: item['name'],
+                          role:
+                              widget.userRole == 'foreman'
+                                  ? 'Workshop'
+                                  : 'Foreman',
+                          userData: {
+                            'uid': item['uid'],
+                            'fullName': item['name'],
+                            'role':
+                                widget.userRole == 'foreman'
+                                    ? 'workshop_owner'
+                                    : 'foreman',
+                          },
+                        ),
                   ),
                 );
                 if (newReview != null) {
                   setState(() {
-                    myReviews.add(newReview);
                     toRateItems.remove(item);
                     if (isTerminated) RatingService().removePendingRating(item);
                   });
+                  await _loadMyReviews();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(isTerminated
-                          ? 'Rating submitted for terminated contract'
-                          : 'Rating submitted successfully'),
+                      content: Text(
+                        isTerminated
+                            ? 'Rating submitted for terminated contract'
+                            : 'Rating submitted successfully',
+                      ),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -301,9 +336,14 @@ class _RatingListPageState extends State<RatingListPage>
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: _primaryColor,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-              child: const Text("Rate Now", style: TextStyle(color: Colors.white)),
+              child: const Text(
+                "Rate Now",
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -313,9 +353,11 @@ class _RatingListPageState extends State<RatingListPage>
 
   Widget _buildMyReviewCard(Map<String, dynamic> review) {
     final isGiven = review['type'] == 'given';
-    final role = isGiven
-        ? (review['ratedUserRole'] == 'workshop_owner' ? 'Workshop' : 'Foreman')
-        : (review['reviewerRole'] == 'workshop_owner' ? 'Workshop' : 'Foreman');
+    final name = isGiven ? review['ratedUserName'] : review['reviewerName'];
+    final role = isGiven ? review['ratedUserRole'] : review['reviewerRole'];
+    final timestamp = review['createdAt'] as Timestamp?;
+    final date = _formatDate(timestamp);
+    final initials = _getInitials(name ?? '');
 
     return Card(
       elevation: 2,
@@ -323,64 +365,93 @@ class _RatingListPageState extends State<RatingListPage>
       margin: const EdgeInsets.symmetric(vertical: 8),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            CircleAvatar(backgroundColor: Colors.grey[300], child: Text(review['initials'])),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(review['name'], style: const TextStyle(fontWeight: FontWeight.w600)),
-                Text('$role • ${isGiven ? "Given" : "Received"} on ${review['date']}',
-                    style: TextStyle(color: isGiven ? Colors.blue : Colors.green, fontSize: 12)),
-              ]),
-            ),
-          ]),
-          const SizedBox(height: 8),
-          Row(children: List.generate(5, (i) {
-            return Icon(
-              i < review['rating'] ? Icons.star : Icons.star_border,
-              size: 20,
-              color: Colors.orange[700],
-            );
-          })),
-          const SizedBox(height: 8),
-          Text(review['review']),
-          if (isGiven)
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () async {
-                  final updated = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => EditRatingFormPage(
-                        initials: review['initials'],
-                        name: review['name'],
-                        role: role,
-                        initialRating: review['rating'],
-                        initialReview: review['review'],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Colors.grey[300],
+                  child: Text(initials),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name ?? 'Unknown User',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
-                    ),
-                  );
-                  if (updated != null) {
-                    await FirebaseFirestore.instance
-                        .collection('ratings')
-                        .doc(review['documentId'])
-                        .update({
-                      'rating': updated['rating'],
-                      'comment': updated['review'],
-                      'updatedAt': FieldValue.serverTimestamp(),
-                    });
-                    _loadMyReviews();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Review updated'), backgroundColor: Colors.green),
-                    );
-                  }
-                },
-                child: const Text("Edit Review"),
-              ),
+                      Text(
+                        '${role == 'workshop_owner' ? 'Workshop Owner' : 'Foreman'} • ${isGiven ? "Given" : "Received"} on $date',
+                        style: TextStyle(
+                          color: isGiven ? Colors.blue : Colors.green,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-        ]),
+            const SizedBox(height: 8),
+            Row(
+              children: List.generate(5, (i) {
+                return Icon(
+                  i < (review['rating'] ?? 0) ? Icons.star : Icons.star_border,
+                  size: 20,
+                  color: Colors.orange[700],
+                );
+              }),
+            ),
+            const SizedBox(height: 8),
+            Text(review['comment'] ?? ''),
+            if (isGiven)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () async {
+                    final updated = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (_) => EditRatingFormPage(
+                              initials: initials,
+                              name: name ?? 'Unknown User',
+                              role:
+                                  role == 'workshop_owner'
+                                      ? 'Workshop Owner'
+                                      : 'Foreman',
+                              initialRating:
+                                  review['rating']?.toDouble() ?? 0.0,
+                              initialReview: review['comment'] ?? '',
+                            ),
+                      ),
+                    );
+                    if (updated != null) {
+                      await FirebaseFirestore.instance
+                          .collection('ratings')
+                          .doc(review['documentId'])
+                          .update({
+                            'rating': updated['rating'],
+                            'comment': updated['review'],
+                            'updatedAt': FieldValue.serverTimestamp(),
+                          });
+                      _loadMyReviews();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Review updated'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  },
+                  child: const Text("Edit Review"),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -402,53 +473,59 @@ class _RatingListPageState extends State<RatingListPage>
                 const SnackBar(content: Text("Refreshing ratings...")),
               );
             },
-          )
+          ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TabBar(
-                  controller: _tabController,
-                  labelColor: _primaryColor,
-                  unselectedLabelColor: Colors.grey,
-                  indicatorColor: _primaryColor,
-                  tabs: const [
-                    Tab(text: "To Rate"),
-                    Tab(text: "Rating History"),
-                  ],
-                ),
-                Expanded(
-                  child: TabBarView(
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TabBar(
                     controller: _tabController,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildCategoryChip(),
-                          Expanded(
-                            child: toRateItems.isEmpty
-                                ? _buildEmptyState(true)
-                                : ListView(
-                                    padding: const EdgeInsets.all(16),
-                                    children: toRateItems.map(_buildToRateCard).toList(),
-                                  ),
-                          ),
-                        ],
-                      ),
-                      myReviews.isEmpty
-                          ? _buildEmptyState(false)
-                          : ListView(
-                              padding: const EdgeInsets.all(16),
-                              children: myReviews.map(_buildMyReviewCard).toList(),
-                            ),
+                    labelColor: _primaryColor,
+                    unselectedLabelColor: Colors.grey,
+                    indicatorColor: _primaryColor,
+                    tabs: const [
+                      Tab(text: "To Rate"),
+                      Tab(text: "Rating History"),
                     ],
                   ),
-                ),
-              ],
-            ),
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildCategoryChip(),
+                            Expanded(
+                              child:
+                                  toRateItems.isEmpty
+                                      ? _buildEmptyState(true)
+                                      : ListView(
+                                        padding: const EdgeInsets.all(16),
+                                        children:
+                                            toRateItems
+                                                .map(_buildToRateCard)
+                                                .toList(),
+                                      ),
+                            ),
+                          ],
+                        ),
+                        myReviews.isEmpty
+                            ? _buildEmptyState(false)
+                            : ListView(
+                              padding: const EdgeInsets.all(16),
+                              children:
+                                  myReviews.map(_buildMyReviewCard).toList(),
+                            ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
     );
   }
 }
