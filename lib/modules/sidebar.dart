@@ -39,21 +39,34 @@ class _SidebarMenuState extends State<SidebarMenu> {
     _updatePendingRatingsCount();
   }
 
+  @override
+  void didUpdateWidget(SidebarMenu oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _updatePendingRatingsCount();
+  }
+
   void _setWorkshopName() {
     if (widget.userRole == UserRole.WorkshopOwner) {
       workshopName = widget.userName;
     } else {
       // For demo, assign a fixed workshop name for foreman
-      workshopName = 'Ali Workshop'; // Replace with real lookup if needed
+      workshopName = 'xixi workshop'; // Replace with real lookup if needed
     }
   }
 
   void _updatePendingRatingsCount() {
-    final userRoleString = widget.userRole == UserRole.Foreman ? 'foreman' : 'workshop';
-    final pendingRatings = RatingService().getPendingRatingsForUser(userRoleString, widget.userName, workshopName);
-    setState(() {
-      pendingRatingsCount = pendingRatings.length;
-    });
+    final userRoleString =
+        widget.userRole == UserRole.Foreman ? 'foreman' : 'workshop';
+    final pendingRatings = RatingService().getPendingRatingsForUser(
+      userRoleString,
+      widget.userName,
+      workshopName,
+    );
+    if (mounted) {
+      setState(() {
+        pendingRatingsCount = pendingRatings.length;
+      });
+    }
   }
 
   Color get primaryColor {
@@ -84,10 +97,11 @@ class _SidebarMenuState extends State<SidebarMenu> {
       appBar: AppBar(
         title: Text(pageTitle),
         leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
+          builder:
+              (context) => IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
         ),
       ),
       drawer: SidebarMenu(
@@ -164,9 +178,9 @@ class _SidebarMenuState extends State<SidebarMenu> {
         );
     }
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => page),
-    );
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => page));
   }
 
   Widget _buildMenuItem({
@@ -191,10 +205,7 @@ class _SidebarMenuState extends State<SidebarMenu> {
                   color: Colors.red,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                constraints: const BoxConstraints(
-                  minWidth: 16,
-                  minHeight: 16,
-                ),
+                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
                 child: Text(
                   badgeCount.toString(),
                   style: const TextStyle(
@@ -264,17 +275,37 @@ class _SidebarMenuState extends State<SidebarMenu> {
                 child: ListView(
                   padding: EdgeInsets.zero,
                   children: [
-                    _buildMenuItem(context: context, icon: Icons.calendar_today, title: 'Schedule'),
-                    _buildMenuItem(context: context, icon: Icons.inventory, title: 'Inventory'),
-                    _buildMenuItem(context: context, icon: Icons.store, title: 'Marketplace'),
-                    _buildMenuItem(context: context, icon: Icons.payment, title: 'Payroll'),
+                    _buildMenuItem(
+                      context: context,
+                      icon: Icons.calendar_today,
+                      title: 'Schedule',
+                    ),
+                    _buildMenuItem(
+                      context: context,
+                      icon: Icons.inventory,
+                      title: 'Inventory',
+                    ),
+                    _buildMenuItem(
+                      context: context,
+                      icon: Icons.store,
+                      title: 'Marketplace',
+                    ),
+                    _buildMenuItem(
+                      context: context,
+                      icon: Icons.payment,
+                      title: 'Payroll',
+                    ),
                     _buildMenuItem(
                       context: context,
                       icon: Icons.star,
                       title: 'Ratings',
                       badgeCount: pendingRatingsCount,
                     ),
-                    _buildMenuItem(context: context, icon: Icons.person, title: 'Profile'),
+                    _buildMenuItem(
+                      context: context,
+                      icon: Icons.person,
+                      title: 'Profile',
+                    ),
                   ],
                 ),
               ),

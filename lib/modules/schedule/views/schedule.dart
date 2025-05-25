@@ -14,12 +14,24 @@ class RatingService {
   final List<Map<String, dynamic>> _pendingRatings = [];
 
   void addPendingRating(Map<String, dynamic> ratingData) {
-    _pendingRatings.add(ratingData);
+    // Check if a similar rating already exists
+    bool exists = _pendingRatings.any(
+      (rating) =>
+          rating['contractId'] == ratingData['contractId'] &&
+          rating['forUserRole'] == ratingData['forUserRole'],
+    );
+
+    if (!exists) {
+      _pendingRatings.add(ratingData);
+    }
   }
 
   // Now filter by user role AND user identity (foremanName or workshopName)
   List<Map<String, dynamic>> getPendingRatingsForUser(
-      String userRole, String userName, String workshopName) {
+    String userRole,
+    String userName,
+    String workshopName,
+  ) {
     return _pendingRatings.where((rating) {
       if (rating['forUserRole'] != userRole) return false;
 
@@ -33,9 +45,21 @@ class RatingService {
   }
 
   void removePendingRating(Map<String, dynamic> ratingData) {
-    _pendingRatings.removeWhere((rating) =>
-        rating['contractId'] == ratingData['contractId'] &&
-        rating['forUserRole'] == ratingData['forUserRole']);
+    _pendingRatings.removeWhere(
+      (rating) =>
+          rating['contractId'] == ratingData['contractId'] &&
+          rating['forUserRole'] == ratingData['forUserRole'],
+    );
+  }
+
+  // Debug method to print all pending ratings
+  void debugPrintRatings() {
+    print('All pending ratings:');
+    for (var rating in _pendingRatings) {
+      print(
+        'Rating for ${rating['forUserRole']}: ${rating['name']} (Workshop: ${rating['workshopName']}, Foreman: ${rating['foremanName']})',
+      );
+    }
   }
 }
 
@@ -69,10 +93,11 @@ class _ScheduleState extends State<Schedule> {
   void initState() {
     super.initState();
     // Set workshopName depending on role — if foreman, associate workshop must be known
-    // For demo, assuming foreman’s workshop is "Ali Workshop"
-    workshopName = widget.userRole.toLowerCase() == 'workshop'
-        ? widget.userName
-        : 'Ali Workshop'; // Replace with real lookup if possible
+    // For demo, assuming foreman's workshop is "Ali Workshop"
+    workshopName =
+        widget.userRole.toLowerCase() == 'workshop'
+            ? widget.userName
+            : 'xixi workshop'; // Replace with real lookup if possible
   }
 
   Future<void> _selectTime({required bool isStart}) async {
@@ -116,7 +141,10 @@ class _ScheduleState extends State<Schedule> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Terminate', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'Terminate',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         );
@@ -128,7 +156,8 @@ class _ScheduleState extends State<Schedule> {
         isContractTerminated = true;
       });
 
-      final String contractId = 'contract_${DateTime.now().millisecondsSinceEpoch}';
+      final String contractId =
+          'contract_${DateTime.now().millisecondsSinceEpoch}';
       final DateTime now = DateTime.now();
       final String formattedDate = '${now.day}/${now.month}/${now.year}';
 
@@ -149,52 +178,93 @@ class _ScheduleState extends State<Schedule> {
       } else {
         // Workshop owner logged in
         currentWorkshopName = widget.userName;
-        foremanName = 'John Foreman'; // Replace with actual foreman name linked to contract
+        foremanName =
+            'John Foreman'; // Replace with actual foreman name linked to contract
 
         otherPartyName = foremanName;
         otherPartyInitials = _getInitials(foremanName);
         otherPartyRole = 'foreman';
       }
 
-      // Add rating for current user to rate other party
-      RatingService().addPendingRating({
+      // Create rating data for workshop owner
+      final workshopRatingData = {
         'contractId': contractId,
-        'forUserRole': widget.userRole.toLowerCase(),
-        'name': otherPartyName,
-        'initials': otherPartyInitials,
+        'forUserRole': 'workshop',
+        'name':
+            widget.userRole.toLowerCase() == 'foreman'
+                ? widget.userName
+                : otherPartyName,
+        'initials':
+            widget.userRole.toLowerCase() == 'foreman'
+                ? _getInitials(widget.userName)
+                : otherPartyInitials,
         'date': formattedDate,
-        'message': 'Contract terminated. Please rate your experience working together.',
-        'targetRole': otherPartyRole,
+        'message':
+            'Contract terminated. Please rate your experience working together.',
+        'targetRole': 'foreman',
         'workshopName': currentWorkshopName,
         'foremanName': foremanName,
-      });
+      };
 
-      // Add rating for other party to rate current user
-      RatingService().addPendingRating({
+      // Create rating data for foreman
+      final foremanRatingData = {
         'contractId': contractId,
-        'forUserRole': otherPartyRole,
-        'name': widget.userName,
-        'initials': _getInitials(widget.userName),
+        'forUserRole': 'foreman',
+        'name':
+            widget.userRole.toLowerCase() == 'workshop'
+                ? widget.userName
+                : otherPartyName,
+        'initials':
+            widget.userRole.toLowerCase() == 'workshop'
+                ? _getInitials(widget.userName)
+                : otherPartyInitials,
         'date': formattedDate,
-        'message': 'Contract terminated. Please rate your experience working together.',
-        'targetRole': widget.userRole.toLowerCase(),
+        'message':
+            'Contract terminated. Please rate your experience working together.',
+        'targetRole': 'workshop',
         'workshopName': currentWorkshopName,
         'foremanName': foremanName,
-      });
+      };
+
+      // Add ratings for both parties
+      RatingService().addPendingRating(workshopRatingData);
+      RatingService().addPendingRating(foremanRatingData);
+
+      // Force rebuild of the sidebar to update notification badge
+      if (mounted) {
+        setState(() {
+          // Rebuild the scaffold to trigger sidebar rebuild
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder:
+                  (context) => Schedule(
+                    userName: widget.userName,
+                    userRole: widget.userRole,
+                    userPosition: widget.userPosition,
+                  ),
+            ),
+          );
+        });
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-              'Contract terminated successfully. Rating requests have been created.'),
+        const SnackBar(
+          content: Text(
+            'Contract terminated successfully. Rating requests have been created.',
+          ),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 3),
+          duration: Duration(seconds: 3),
         ),
       );
     }
   }
 
   String _getInitials(String name) {
-    return name.split(' ').map((n) => n.isNotEmpty ? n[0] : '').join().toUpperCase();
+    return name
+        .split(' ')
+        .map((n) => n.isNotEmpty ? n[0] : '')
+        .join()
+        .toUpperCase();
   }
 
   @override
@@ -206,17 +276,20 @@ class _ScheduleState extends State<Schedule> {
         title: const Text('Schedule'),
         backgroundColor: primaryColor,
         leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
+          builder:
+              (context) => IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
         ),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const NotificationPage()),
+                MaterialPageRoute(
+                  builder: (context) => const NotificationPage(),
+                ),
               );
             },
             child: const Text(
@@ -227,7 +300,10 @@ class _ScheduleState extends State<Schedule> {
         ],
       ),
       drawer: SidebarMenu(
-        userRole: widget.userRole.toLowerCase() == 'foreman' ? UserRole.Foreman : UserRole.WorkshopOwner,
+        userRole:
+            widget.userRole.toLowerCase() == 'foreman'
+                ? UserRole.Foreman
+                : UserRole.WorkshopOwner,
         userName: widget.userName,
         userPosition: widget.userPosition,
         selectedTitle: 'Schedule',
@@ -266,7 +342,10 @@ class _ScheduleState extends State<Schedule> {
               ),
             ),
           const SizedBox(height: 20),
-          const Text("Workshop Name:", style: TextStyle(fontWeight: FontWeight.w500)),
+          const Text(
+            "Workshop Name:",
+            style: TextStyle(fontWeight: FontWeight.w500),
+          ),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -276,9 +355,12 @@ class _ScheduleState extends State<Schedule> {
                   readOnly: true,
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: isContractTerminated ? Colors.grey[100] : Colors.white,
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    fillColor:
+                        isContractTerminated ? Colors.grey[100] : Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide(
@@ -291,11 +373,14 @@ class _ScheduleState extends State<Schedule> {
               const SizedBox(width: 8),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isContractTerminated ? Colors.grey : Colors.red,
+                  backgroundColor:
+                      isContractTerminated ? Colors.grey : Colors.red,
                   foregroundColor: Colors.white,
                 ),
                 onPressed: isContractTerminated ? null : _terminateContract,
-                child: Text(isContractTerminated ? "Terminated" : "Terminate Contract"),
+                child: Text(
+                  isContractTerminated ? "Terminated" : "Terminate Contract",
+                ),
               ),
             ],
           ),
@@ -339,7 +424,10 @@ class _ScheduleState extends State<Schedule> {
             children: [
               Expanded(
                 child: GestureDetector(
-                  onTap: isContractTerminated ? null : () => _selectTime(isStart: true),
+                  onTap:
+                      isContractTerminated
+                          ? null
+                          : () => _selectTime(isStart: true),
                   child: TimeFieldDisplay(
                     label: formatTime(startTime),
                     isDisabled: isContractTerminated,
@@ -352,7 +440,10 @@ class _ScheduleState extends State<Schedule> {
               ),
               Expanded(
                 child: GestureDetector(
-                  onTap: isContractTerminated ? null : () => _selectTime(isStart: false),
+                  onTap:
+                      isContractTerminated
+                          ? null
+                          : () => _selectTime(isStart: false),
                   child: TimeFieldDisplay(
                     label: formatTime(endTime),
                     isDisabled: isContractTerminated,
@@ -365,8 +456,10 @@ class _ScheduleState extends State<Schedule> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Task",
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+              const Text(
+                "Task",
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              ),
               TextButton(
                 onPressed: () {
                   Navigator.push(
@@ -378,7 +471,7 @@ class _ScheduleState extends State<Schedule> {
                   "See All",
                   style: TextStyle(color: Colors.blue),
                 ),
-              )
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -388,7 +481,8 @@ class _ScheduleState extends State<Schedule> {
             date: "Sunday, March 30, 2025",
             time: "9:00 AM - 12:00 PM",
             status: isContractTerminated ? "Cancelled" : "In Progress",
-            statusColor: isContractTerminated ? Colors.red : const Color(0xFF2D9CDB),
+            statusColor:
+                isContractTerminated ? Colors.red : const Color(0xFF2D9CDB),
           ),
           const SizedBox(height: 12),
           TaskCard(
@@ -397,7 +491,8 @@ class _ScheduleState extends State<Schedule> {
             date: "Monday, March 31, 2025",
             time: "10:00 AM – 12:00 PM",
             status: isContractTerminated ? "Cancelled" : "Scheduled",
-            statusColor: isContractTerminated ? Colors.red : const Color(0xFF56CCF2),
+            statusColor:
+                isContractTerminated ? Colors.red : const Color(0xFF56CCF2),
           ),
         ],
       ),
@@ -434,12 +529,7 @@ class TimeFieldDisplay extends StatelessWidget {
             color: isDisabled ? Colors.grey : null,
           ),
           const SizedBox(width: 8),
-          Text(
-            label,
-            style: TextStyle(
-              color: isDisabled ? Colors.grey : null,
-            ),
-          ),
+          Text(label, style: TextStyle(color: isDisabled ? Colors.grey : null)),
         ],
       ),
     );
@@ -480,8 +570,10 @@ class TaskCard extends StatelessWidget {
               Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
               const Spacer(),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: statusColor.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(20),
