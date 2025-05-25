@@ -1,3 +1,4 @@
+// Your imports remain unchanged
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -6,7 +7,7 @@ import 'package:workshop_management_system/modules/rating/views/AddRatingForm.da
 import 'package:workshop_management_system/modules/schedule/views/schedule.dart'; // RatingService
 
 class RatingListPage extends StatefulWidget {
-  final String userRole; // 'foreman' or 'workshop'
+  final String userRole;
   final String userName;
   final String workshopName;
   final List<Map<String, dynamic>> toRateList;
@@ -25,7 +26,8 @@ class RatingListPage extends StatefulWidget {
   State<RatingListPage> createState() => _RatingListPageState();
 }
 
-class _RatingListPageState extends State<RatingListPage> with SingleTickerProviderStateMixin {
+class _RatingListPageState extends State<RatingListPage>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late List<Map<String, dynamic>> toRateItems;
   List<Map<String, dynamic>> myReviews = [];
@@ -37,7 +39,7 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _selectedCategory = widget.userRole == 'foreman' ? 'Workshops' : 'Foremen';
-    toRateItems = List<Map<String, dynamic>>.from(widget.toRateList);
+    toRateItems = []; // Initially empty, will load fresh
     _loadPendingRatings();
     _loadMyReviews();
   }
@@ -48,24 +50,33 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
     super.dispose();
   }
 
-  void _loadPendingRatings() {
-    final pendingRatings = RatingService().getPendingRatingsForUser(
-      widget.userRole,
-      widget.userName,
-      widget.workshopName,
-    );
-    setState(() {
-      for (final pending in pendingRatings) {
-        final exists = toRateItems.any(
-          (item) =>
-              item['contractId'] == pending['contractId'] ||
-              (item['name'] == pending['name'] && item['initials'] == pending['initials']),
-        );
-        if (!exists) {
-          toRateItems.add(pending);
+  Future<void> _loadPendingRatings() async {
+    try {
+      final pendingRatings = await RatingService().getPendingRatingsForUser(
+        widget.userRole,
+        widget.userName,
+        widget.workshopName,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        toRateItems = []; // Clear stale data
+        for (final pending in pendingRatings) {
+          final exists = toRateItems.any(
+            (item) =>
+                item['contractId'] == pending['contractId'] ||
+                (item['name'] == pending['name'] &&
+                    item['initials'] == pending['initials']),
+          );
+          if (!exists) {
+            toRateItems.add(pending);
+          }
         }
-      }
-    });
+      });
+    } catch (e) {
+      print("Error loading pending ratings: $e");
+    }
   }
 
   Future<void> _loadMyReviews() async {
@@ -92,7 +103,10 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
 
       for (var doc in givenRatingsSnapshot.docs) {
         Map<String, dynamic> data = doc.data();
-        var userDoc = await FirebaseFirestore.instance.collection('users').doc(data['ratedUserId']).get();
+        var userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(data['ratedUserId'])
+            .get();
         if (!userDoc.exists || userDoc.data() == null) continue;
 
         Timestamp ts = data['createdAt'] as Timestamp;
@@ -112,7 +126,10 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
 
       for (var doc in receivedRatingsSnapshot.docs) {
         Map<String, dynamic> data = doc.data();
-        var reviewerDoc = await FirebaseFirestore.instance.collection('users').doc(data['reviewerId']).get();
+        var reviewerDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(data['reviewerId'])
+            .get();
         if (!reviewerDoc.exists || reviewerDoc.data() == null) continue;
 
         Timestamp ts = data['createdAt'] as Timestamp;
@@ -156,7 +173,13 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
     return '${d.day}/${d.month}/${d.year}';
   }
 
-  Color get _primaryColor => widget.userRole == 'foreman' ? const Color(0xFF2FB668) : const Color(0xFF4260DB);
+  String _formattedDate(dynamic rawDate) {
+    if (rawDate == null) return '';
+    return ' on $rawDate';
+  }
+
+  Color get _primaryColor =>
+      widget.userRole == 'foreman' ? const Color(0xFF2FB668) : const Color(0xFF4260DB);
 
   Widget _buildCategoryChip() {
     return Container(
@@ -199,9 +222,10 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
     final bool isTerminated = item.containsKey('contractId');
 
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      margin: const EdgeInsets.symmetric(vertical: 8),
+      elevation: 1,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      color: Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -215,8 +239,8 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
                   Text(item['name'], style: const TextStyle(fontWeight: FontWeight.w600)),
                   Text(
                     isTerminated
-                        ? 'Contract terminated on ${item['date']}'
-                        : 'Service completed on ${item['date']}',
+                        ? 'Contract terminated${_formattedDate(item['date'])}'
+                        : 'Service completed${_formattedDate(item['date'])}',
                     style: const TextStyle(color: Colors.grey, fontSize: 12),
                   ),
                 ]),
@@ -242,80 +266,45 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
               ]),
             ),
             const SizedBox(height: 10),
-            Row(children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () async {
-                    final newReview = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AddRatingFormPage(
-                          initials: item['initials'],
-                          name: item['name'],
-                          role: widget.userRole == 'foreman' ? 'Workshop' : 'Foreman',
-                          userData: {
-                            'uid': item['uid'],
-                            'fullName': item['name'],
-                            'role': widget.userRole == 'foreman' ? 'workshop_owner' : 'foreman',
-                          },
-                        ),
-                      ),
-                    );
-                    if (newReview != null) {
-                      setState(() {
-                        myReviews.add(newReview);
-                        toRateItems.remove(item);
-                        if (isTerminated) RatingService().removePendingRating(item);
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(isTerminated
-                              ? 'Rating submitted for terminated contract'
-                              : 'Rating submitted successfully'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _primaryColor,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ElevatedButton(
+              onPressed: () async {
+                final newReview = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AddRatingFormPage(
+                      initials: item['initials'],
+                      name: item['name'],
+                      role: widget.userRole == 'foreman' ? 'Workshop' : 'Foreman',
+                      userData: {
+                        'uid': item['uid'],
+                        'fullName': item['name'],
+                        'role': widget.userRole == 'foreman' ? 'workshop_owner' : 'foreman',
+                      },
+                    ),
                   ),
-                  child: const Text("Rate Now", style: TextStyle(color: Colors.white)),
-                ),
+                );
+                if (newReview != null) {
+                  setState(() {
+                    myReviews.add(newReview);
+                    toRateItems.remove(item);
+                    if (isTerminated) RatingService().removePendingRating(item);
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(isTerminated
+                          ? 'Rating submitted for terminated contract'
+                          : 'Rating submitted successfully'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primaryColor,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              if (isTerminated) ...[
-                const SizedBox(width: 8),
-                OutlinedButton(
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (_) => AlertDialog(
-                        title: const Text('Skip Rating'),
-                        content: const Text('Skip rating this partner? You can rate them later.'),
-                        actions: [
-                          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-                          TextButton(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              setState(() {
-                                toRateItems.remove(item);
-                                RatingService().removePendingRating(item);
-                              });
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Rating skipped')),
-                              );
-                            },
-                            child: const Text('Skip'),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                  child: const Text("Skip"),
-                ),
-              ],
-            ]),
+              child: const Text("Rate Now", style: TextStyle(color: Colors.white)),
+            ),
           ],
         ),
       ),
@@ -374,7 +363,10 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
                     ),
                   );
                   if (updated != null) {
-                    await FirebaseFirestore.instance.collection('ratings').doc(review['documentId']).update({
+                    await FirebaseFirestore.instance
+                        .collection('ratings')
+                        .doc(review['documentId'])
+                        .update({
                       'rating': updated['rating'],
                       'comment': updated['review'],
                       'updatedAt': FieldValue.serverTimestamp(),
@@ -423,41 +415,9 @@ class _RatingListPageState extends State<RatingListPage> with SingleTickerProvid
                   labelColor: _primaryColor,
                   unselectedLabelColor: Colors.grey,
                   indicatorColor: _primaryColor,
-                  tabs: [
-                    Tab(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text("To Rate"),
-                          if (toRateItems.isNotEmpty) ...[
-                            const SizedBox(width: 6),
-                            CircleAvatar(
-                              radius: 10,
-                              backgroundColor: Colors.red,
-                              child: Text('${toRateItems.length}',
-                                  style: const TextStyle(fontSize: 12, color: Colors.white)),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    Tab(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text("Rating History"),
-                          if (myReviews.isNotEmpty) ...[
-                            const SizedBox(width: 6),
-                            CircleAvatar(
-                              radius: 10,
-                              backgroundColor: _primaryColor,
-                              child: Text('${myReviews.length}',
-                                  style: const TextStyle(fontSize: 12, color: Colors.white)),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
+                  tabs: const [
+                    Tab(text: "To Rate"),
+                    Tab(text: "Rating History"),
                   ],
                 ),
                 Expanded(
