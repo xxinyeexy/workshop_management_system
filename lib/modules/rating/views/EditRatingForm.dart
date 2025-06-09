@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 class EditRatingFormPage extends StatefulWidget {
@@ -60,9 +59,10 @@ class _RatingFormPageState extends State<EditRatingFormPage> {
 
   @override
   Widget build(BuildContext context) {
-    final Color primaryColor = widget.role == 'Workshop'
-        ? const Color(0xFF2FB668)
-        : const Color(0xFF4260DB);
+    final Color primaryColor =
+        widget.role == 'Workshop'
+            ? const Color(0xFF2FB668)
+            : const Color(0xFF4260DB);
 
     return Scaffold(
       appBar: AppBar(
@@ -79,7 +79,10 @@ class _RatingFormPageState extends State<EditRatingFormPage> {
               backgroundColor: Colors.grey[300],
               child: Text(
                 widget.initials,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             const SizedBox(height: 10),
@@ -98,7 +101,10 @@ class _RatingFormPageState extends State<EditRatingFormPage> {
               alignment: Alignment.centerLeft,
               child: Text(
                 'Your Review',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey[800]),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
               ),
             ),
             const SizedBox(height: 6),
@@ -107,7 +113,9 @@ class _RatingFormPageState extends State<EditRatingFormPage> {
               maxLines: 4,
               decoration: InputDecoration(
                 hintText: "Write your review here",
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
             const SizedBox(height: 30),
@@ -149,7 +157,10 @@ class _RatingFormPageState extends State<EditRatingFormPage> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                child: const Text("Save Changes"),
+                child: const Text(
+                  "Save Changes",
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ),
           ],

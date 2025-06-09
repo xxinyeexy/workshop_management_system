@@ -280,7 +280,10 @@ class _RatingFormPageState extends State<AddRatingFormPage> {
                                     ),
                                   ),
                                 )
-                                : const Text("Submit Review"),
+                                : const Text(
+                                  "Submit Review",
+                                  style: TextStyle(color: Colors.white),
+                                ),
                       ),
                     ),
                   ],
