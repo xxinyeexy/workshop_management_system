@@ -322,6 +322,7 @@ class _RatingListPageState extends State<RatingListPage>
                     if (isTerminated) RatingService().removePendingRating(item);
                   });
                   await _loadMyReviews();
+                  await _loadPendingRatings();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(

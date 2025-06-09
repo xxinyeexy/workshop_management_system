@@ -5,8 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 class RatingDetailPage extends StatefulWidget {
   final String initials;
   final String name;
-  final String role; // e.g. "Foreman" or "Workshop Owner"
-  final Map<String, dynamic>? userData; // User data from Firestore
+  final String role;
+  final Map<String, dynamic>? userData;
 
   const RatingDetailPage({
     super.key,
@@ -27,14 +27,27 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
   // Rating data
   double averageRating = 0.0;
   int totalRatings = 0;
-  int totalReviews = 0; // Reviews with comments
+  int totalReviews = 0;
   Map<int, int> starDistribution = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0};
-  List<Map<String, dynamic>> reviewsWithComments =
-      []; // Only received reviews with comments
+  List<Map<String, dynamic>> reviewsWithComments = [];
+
+  // Cache for processed data
+  final Map<String, Map<String, dynamic>> _ratingCache = {};
 
   @override
   void initState() {
     super.initState();
+
+    // If userData is passed from the previous page with pre-calculated ratings, use it
+    if (widget.userData != null &&
+        widget.userData!.containsKey('averageRating') &&
+        widget.userData!.containsKey('totalRatings')) {
+      averageRating = widget.userData!['averageRating']?.toDouble() ?? 0.0;
+      totalRatings = widget.userData!['totalRatings'] ?? 0;
+
+      // Still need to fetch detailed reviews, but we can show basic info immediately
+      _quickLoadBasicInfo();
+    }
   }
 
   @override
@@ -42,223 +55,67 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
     super.didChangeDependencies();
     if (widget.userData != null) {
       String userId = widget.userData!['uid'];
-      String userName = widget.userData!['name'] ?? widget.name;
+      String userName =
+          widget.userData!['fullName'] ??
+          widget.userData!['name'] ??
+          widget.name;
+
+      // Clear the cache for this user to ensure fresh data fetch
+      _ratingCache.remove('$userId-$userName');
+
       _fetchRatingData(userId, userName);
     }
   }
 
-  // Fetch rating data from Firestore
+  // Quick load basic info if available from userData
+  void _quickLoadBasicInfo() {
+    if (totalRatings > 0) {
+      // Estimate star distribution based on average rating
+      int roundedRating = averageRating.round();
+      starDistribution = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0};
+      starDistribution[roundedRating] = totalRatings;
+
+      setState(() {
+        isLoading = false; // Show basic info immediately
+      });
+
+      // Still fetch detailed data in background
+      if (widget.userData != null) {
+        String userId = widget.userData!['uid'];
+        String userName =
+            widget.userData!['fullName'] ??
+            widget.userData!['name'] ??
+            widget.name;
+        _fetchDetailedRatingData(userId, userName);
+      }
+    }
+  }
+
+  // OPTIMIZED: Single query approach with caching
   Future<void> _fetchRatingData(String userId, String userName) async {
     if (widget.userData == null) return;
+
+    print('DEBUG: _fetchRatingData called for user: $userName ($userId)');
 
     try {
       setState(() {
         isLoading = true;
       });
 
-      print('Fetching ratings for user: $userId, name: $userName');
-
-      List<QuerySnapshot> queries = [];
-
-      // Try searching by userId first
-      try {
-        queries.add(
-          await FirebaseFirestore.instance
-              .collection('ratings')
-              .where('ratedUserId', isEqualTo: userId)
-              .get(),
-        );
-      } catch (e) {
-        print('Query with ratedUserId failed: $e');
+      // Check cache first
+      String cacheKey = '$userId-$userName';
+      if (_ratingCache.containsKey(cacheKey)) {
+        final cachedData = _ratingCache[cacheKey]!;
+        _updateStateFromCachedData(cachedData);
+        return;
       }
 
-      // Try searching by user name (since ratedUserId is null in your data)
-      try {
-        queries.add(
-          await FirebaseFirestore.instance
-              .collection('ratings')
-              .where('ratedUserName', isEqualTo: userName)
-              .get(),
-        );
-      } catch (e) {
-        print('Query with ratedUserName failed: $e');
-      }
+      // Single query to get all ratings
+      final ratingsSnapshot = await FirebaseFirestore.instance
+          .collection('ratings')
+          .get(const GetOptions(source: Source.server));
 
-      // Try alternative name field
-      try {
-        queries.add(
-          await FirebaseFirestore.instance
-              .collection('ratings')
-              .where('ratedUserName', isEqualTo: widget.name)
-              .get(),
-        );
-      } catch (e) {
-        print('Query with widget.name failed: $e');
-      }
-
-      // Get all ratings and filter manually (fallback)
-      try {
-        final allRatings =
-            await FirebaseFirestore.instance.collection('ratings').get();
-
-        // Filter documents where this user was rated
-        final filteredDocs =
-            allRatings.docs.where((doc) {
-              final data = doc.data();
-              return data['ratedUserName'] == userName ||
-                  data['ratedUserName'] == widget.name ||
-                  data['ratedUserId'] == userId;
-            }).toList();
-
-        // Create a mock QuerySnapshot with filtered documents
-        if (filteredDocs.isNotEmpty) {
-          queries.add(allRatings); // We'll filter later
-        }
-      } catch (e) {
-        print('Fallback query failed: $e');
-      }
-
-      // Combine all results and remove duplicates
-      Set<String> processedIds = {};
-      List<QueryDocumentSnapshot> allDocs = [];
-
-      for (var query in queries) {
-        for (var doc in query.docs) {
-          if (!processedIds.contains(doc.id)) {
-            final data = doc.data() as Map<String, dynamic>;
-
-            // Check if this document is for our user (since we might have gotten all docs)
-            bool isForThisUser =
-                data['ratedUserName'] == userName ||
-                data['ratedUserName'] == widget.name ||
-                data['ratedUserId'] == userId;
-
-            if (isForThisUser) {
-              allDocs.add(doc);
-              processedIds.add(doc.id);
-            }
-          }
-        }
-      }
-
-      print('Total received ratings found: ${allDocs.length}');
-
-      List<Map<String, dynamic>> tempReviewsWithComments = [];
-      Map<int, int> tempStarDistribution = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0};
-      double totalRatingSum = 0.0;
-      int ratingsCount = 0;
-      int reviewsCount = 0;
-
-      // Process ONLY RECEIVED ratings (ratings given TO this user by others)
-      for (var doc in allDocs) {
-        final data = doc.data() as Map<String, dynamic>;
-        print('Processing received rating document: ${doc.id}');
-        print('Document data: ${data}');
-
-        int rating = 0;
-        if (data['rating'] != null) {
-          if (data['rating'] is int) {
-            rating = data['rating'];
-          } else if (data['rating'] is double) {
-            rating = data['rating'].toInt();
-          } else if (data['rating'] is String) {
-            rating = int.tryParse(data['rating']) ?? 0;
-          }
-        }
-
-        print('Extracted rating: $rating');
-
-        if (rating >= 1 && rating <= 5) {
-          // Count for average calculation and star distribution
-          tempStarDistribution[rating] =
-              (tempStarDistribution[rating] ?? 0) + 1;
-          totalRatingSum += rating;
-          ratingsCount++;
-
-          // Get reviewer info (the person who gave the rating) - try different field name variations
-          String reviewerName =
-              data['reviewerName'] ??
-              data['raterName'] ??
-              data['fromUserName'] ??
-              data['givenByName'] ??
-              'Anonymous';
-          String reviewerRole =
-              data['reviewerRole'] ??
-              data['raterRole'] ??
-              data['fromUserRole'] ??
-              data['givenByRole'] ??
-              '';
-          String comment =
-              (data['comment'] ??
-                      data['review'] ??
-                      data['reviewText'] ??
-                      data['feedback'] ??
-                      '')
-                  .toString()
-                  .trim();
-
-          print(
-            'Reviewer: $reviewerName, Role: $reviewerRole, Comment: $comment',
-          );
-
-          // Add to reviews regardless of comment (for now, to see all data)
-          Map<String, dynamic> ratingData = {
-            ...data,
-            'documentId': doc.id,
-            'reviewerName': reviewerName,
-            'reviewerRole': reviewerRole,
-            'comment': comment,
-            'rating': rating,
-            'date': _formatDate(
-              data['createdAt'] as Timestamp? ??
-                  data['timestamp'] as Timestamp?,
-            ),
-            'rawDate':
-                data['createdAt'] as Timestamp? ??
-                data['timestamp'] as Timestamp? ??
-                Timestamp.now(),
-          };
-
-          // Only add to reviews if there's a comment
-          if (comment.isNotEmpty) {
-            tempReviewsWithComments.add(ratingData);
-            reviewsCount++;
-          }
-        } else {
-          print('Invalid rating value: $rating');
-        }
-      }
-
-      // Calculate average rating from all received ratings
-      double avgRating = ratingsCount > 0 ? totalRatingSum / ratingsCount : 0.0;
-
-      print('Final calculations:');
-      print('Total ratings count: $ratingsCount');
-      print('Reviews with comments: $reviewsCount');
-      print('Average rating: $avgRating');
-      print('Star distribution: $tempStarDistribution');
-      print('All documents found: ${allDocs.length}');
-
-      // Sort reviews with comments by date (most recent first)
-      tempReviewsWithComments.sort((a, b) {
-        final aTime = a['rawDate'] as Timestamp?;
-        final bTime = b['rawDate'] as Timestamp?;
-        if (aTime == null && bTime == null) return 0;
-        if (aTime == null) return 1;
-        if (bTime == null) return -1;
-        return bTime.compareTo(aTime); // Most recent first
-      });
-
-      setState(() {
-        averageRating = avgRating;
-        totalRatings = ratingsCount;
-        totalReviews = reviewsCount;
-        starDistribution = tempStarDistribution;
-        reviewsWithComments = tempReviewsWithComments;
-        isLoading = false;
-      });
-
-      _sortReviews();
+      await _processRatingsData(ratingsSnapshot, userId, userName, cacheKey);
     } catch (e) {
       print('Error fetching rating data: $e');
       setState(() {
@@ -267,7 +124,163 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
     }
   }
 
-  // Sorting helper
+  // Fetch detailed data in background (when basic info is already shown)
+  Future<void> _fetchDetailedRatingData(String userId, String userName) async {
+    try {
+      String cacheKey = '$userId-$userName';
+      if (_ratingCache.containsKey(cacheKey)) {
+        final cachedData = _ratingCache[cacheKey]!;
+        _updateStateFromCachedData(cachedData);
+        return;
+      }
+
+      final ratingsSnapshot = await FirebaseFirestore.instance
+          .collection('ratings')
+          .get(const GetOptions(source: Source.server));
+
+      await _processRatingsData(ratingsSnapshot, userId, userName, cacheKey);
+    } catch (e) {
+      print('Error fetching detailed rating data: $e');
+    }
+  }
+
+  // OPTIMIZED: Process all ratings data in one pass
+  Future<void> _processRatingsData(
+    QuerySnapshot ratingsSnapshot,
+    String userId,
+    String userName,
+    String cacheKey,
+  ) async {
+    List<Map<String, dynamic>> tempReviewsWithComments = [];
+    Map<int, int> tempStarDistribution = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0};
+    double totalRatingSum = 0.0;
+    int ratingsCount = 0;
+    int reviewsCount = 0;
+
+    // Process ratings in a single pass
+    for (var doc in ratingsSnapshot.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+
+      // Check if this rating is for our user
+      bool isForThisUser =
+          data['ratedUserName'] == userName ||
+          data['ratedUserName'] == widget.name ||
+          data['ratedUserId'] == userId;
+
+      if (!isForThisUser) continue;
+
+      int rating = _extractRating(data);
+      if (rating < 1 || rating > 5) continue;
+
+      // Update counters and distribution
+      tempStarDistribution[rating] = (tempStarDistribution[rating] ?? 0) + 1;
+      totalRatingSum += rating;
+      ratingsCount++;
+
+      // Process review data
+      String reviewerName = _extractReviewerName(data);
+      String reviewerRole = _extractReviewerRole(data);
+      String comment = _extractComment(data);
+
+      if (comment.isNotEmpty) {
+        Map<String, dynamic> ratingData = {
+          'documentId': doc.id,
+          'reviewerName': reviewerName,
+          'reviewerRole': reviewerRole,
+          'comment': comment,
+          'rating': rating,
+          'date': _formatDate(
+            data['createdAt'] as Timestamp? ?? data['timestamp'] as Timestamp?,
+          ),
+          'rawDate':
+              data['createdAt'] as Timestamp? ??
+              data['timestamp'] as Timestamp? ??
+              Timestamp.now(),
+        };
+
+        tempReviewsWithComments.add(ratingData);
+        reviewsCount++;
+      }
+    }
+
+    // Calculate average
+    double avgRating = ratingsCount > 0 ? totalRatingSum / ratingsCount : 0.0;
+
+    // Sort reviews by date (most recent first)
+    tempReviewsWithComments.sort((a, b) {
+      final aTime = a['rawDate'] as Timestamp?;
+      final bTime = b['rawDate'] as Timestamp?;
+      if (aTime == null && bTime == null) return 0;
+      if (aTime == null) return 1;
+      if (bTime == null) return -1;
+      return bTime.compareTo(aTime);
+    });
+
+    // Cache the processed data
+    final processedData = {
+      'averageRating': avgRating,
+      'totalRatings': ratingsCount,
+      'totalReviews': reviewsCount,
+      'starDistribution': tempStarDistribution,
+      'reviewsWithComments': tempReviewsWithComments,
+    };
+    _ratingCache[cacheKey] = processedData;
+
+    _updateStateFromCachedData(processedData);
+  }
+
+  void _updateStateFromCachedData(Map<String, dynamic> data) {
+    setState(() {
+      averageRating = data['averageRating'];
+      totalRatings = data['totalRatings'];
+      totalReviews = data['totalReviews'];
+      starDistribution = Map<int, int>.from(data['starDistribution']);
+      reviewsWithComments = List<Map<String, dynamic>>.from(
+        data['reviewsWithComments'],
+      );
+      isLoading = false;
+    });
+
+    _sortReviews();
+  }
+
+  // Helper methods for data extraction
+  int _extractRating(Map<String, dynamic> data) {
+    if (data['rating'] == null) return 0;
+
+    if (data['rating'] is int) return data['rating'];
+    if (data['rating'] is double) return data['rating'].toInt();
+    if (data['rating'] is String) return int.tryParse(data['rating']) ?? 0;
+
+    return 0;
+  }
+
+  String _extractReviewerName(Map<String, dynamic> data) {
+    return data['reviewerName'] ??
+        data['raterName'] ??
+        data['fromUserName'] ??
+        data['givenByName'] ??
+        'Anonymous';
+  }
+
+  String _extractReviewerRole(Map<String, dynamic> data) {
+    return data['reviewerRole'] ??
+        data['raterRole'] ??
+        data['fromUserRole'] ??
+        data['givenByRole'] ??
+        '';
+  }
+
+  String _extractComment(Map<String, dynamic> data) {
+    return (data['comment'] ??
+            data['review'] ??
+            data['reviewText'] ??
+            data['feedback'] ??
+            '')
+        .toString()
+        .trim();
+  }
+
   void _sortReviews() {
     setState(() {
       switch (sortBy) {
@@ -292,13 +305,11 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
     });
   }
 
-  // Convert role to display format
   String _getDisplayRole(String role) {
     switch (role.toLowerCase()) {
       case 'foreman':
         return 'Foreman';
       case 'workshop_owner':
-        return 'Workshop Owner';
       case 'workshopowner':
         return 'Workshop Owner';
       default:
@@ -306,7 +317,6 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
     }
   }
 
-  // Format timestamp to readable date
   String _formatDate(dynamic timestamp) {
     if (timestamp == null) return 'Unknown date';
 
@@ -345,7 +355,6 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
     return month >= 1 && month <= 12 ? months[month] : '';
   }
 
-  // Method for building Summary Card
   Widget _buildSummaryCard(Color primaryColor) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -434,7 +443,6 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
     );
   }
 
-  // Method for building Sort Dropdown
   Widget _buildSortDropdown() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
@@ -471,7 +479,6 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
     );
   }
 
-  // Method for building Review Card
   Widget _buildReviewCard(Map<String, dynamic> review, Color primaryColor) {
     final String reviewerName = review['reviewerName'] ?? 'Anonymous';
     final String reviewerRole = review['reviewerRole'] ?? '';
@@ -538,72 +545,11 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
     );
   }
 
-  // Method to get initials from a name
   String _getInitials(String name) {
     if (name.isEmpty) return 'A';
     List<String> words = name.split(' ');
     if (words.length == 1) return words[0][0].toUpperCase();
     return '${words[0][0]}${words[words.length - 1][0]}'.toUpperCase();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final Color primaryColor =
-        widget.role.toLowerCase().contains('foreman')
-            ? const Color(0xFF2FB668)
-            : const Color(0xFF4260DB);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          "Rate & Review",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: primaryColor,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body:
-          isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  // Profile Card
-                  _buildProfileCard(primaryColor),
-                  const SizedBox(height: 16),
-                  // Summary Card
-                  _buildSummaryCard(primaryColor),
-                  const SizedBox(height: 16),
-                  // Reviews Header
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '$totalReviews reviews found',
-                        style: const TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                      _buildSortDropdown(),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // Reviews List
-                  if (reviewsWithComments.isEmpty)
-                    const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(32.0),
-                        child: Text(
-                          'No reviews yet',
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
-                        ),
-                      ),
-                    )
-                  else
-                    ...reviewsWithComments.map(
-                      (review) => _buildReviewCard(review, primaryColor),
-                    ),
-                ],
-              ),
-    );
   }
 
   Widget _buildProfileCard(Color primaryColor) {
@@ -672,6 +618,62 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
           ),
         ],
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Color primaryColor =
+        widget.role.toLowerCase().contains('foreman')
+            ? const Color(0xFF2FB668)
+            : const Color(0xFF4260DB);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          "Rate & Review",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: primaryColor,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body:
+          isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  _buildProfileCard(primaryColor),
+                  const SizedBox(height: 16),
+                  _buildSummaryCard(primaryColor),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '$totalReviews reviews found',
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                      _buildSortDropdown(),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (reviewsWithComments.isEmpty)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32.0),
+                        child: Text(
+                          'No reviews yet',
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      ),
+                    )
+                  else
+                    ...reviewsWithComments.map(
+                      (review) => _buildReviewCard(review, primaryColor),
+                    ),
+                ],
+              ),
     );
   }
 }

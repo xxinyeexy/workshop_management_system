@@ -1,21 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../sidebar.dart'; // your AppScaffold file
+import '../../sidebar.dart';
 import 'package:workshop_management_system/modules/rating/views/RatingDetails.dart';
 import 'package:workshop_management_system/modules/rating/views/RatingListPage.dart';
 
-/// A single screen that adapts its colour scheme to the caller's role.
-/// * Pass `userRole: 'foreman'`  →  green theme.
-/// * Pass `userRole: 'workshop'` →  blue theme.
 class FindForemanWorkshopPage extends StatefulWidget {
-  final String
-  userRole; // This is for the page's internal logic ('foreman' or 'workshop')
+  final String userRole;
   final String userName;
-  final String?
-  originalUserRole; // This is the original role string ('foreman', 'workshop owner', etc.)
-  final String?
-  userPosition; // This is the display position ('Foreman', 'Workshop Owner')
-  final UserRole? enumUserRole; // This is the UserRole enum
+  final String? originalUserRole;
+  final String? userPosition;
+  final UserRole? enumUserRole;
 
   const FindForemanWorkshopPage({
     super.key,
@@ -35,17 +29,18 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
-  // Lists to store users from Firestore
   List<Map<String, dynamic>> foremen = [];
   List<Map<String, dynamic>> workshops = [];
   bool isLoading = true;
 
+  // Cache for rating data to avoid repeated queries
+  final Map<String, Map<String, dynamic>> _ratingCache = {};
+
   late final Color primaryColor =
       widget.userRole.toLowerCase() == 'foreman'
-          ? const Color(0xFF2FB668) // Foreman green
-          : const Color(0xFF4260DB); // Workshop blue
+          ? const Color(0xFF2FB668)
+          : const Color(0xFF4260DB);
 
-  // Helper methods to convert role strings
   UserRole _getUserRole(String role) {
     switch (role.toLowerCase()) {
       case 'foreman':
@@ -93,26 +88,53 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
     _fetchUsers();
   }
 
-  // Fetch users from Firestore
+  // OPTIMIZED: Fetch users and ratings in parallel using batching
   Future<void> _fetchUsers() async {
     try {
       setState(() {
         isLoading = true;
       });
 
-      // Fetch all users from Firestore
-      QuerySnapshot usersSnapshot =
-          await FirebaseFirestore.instance.collection('users').get();
+      // Fetch users and all ratings in parallel
+      final futures = await Future.wait([
+        FirebaseFirestore.instance.collection('users').get(),
+        FirebaseFirestore.instance.collection('ratings').get(),
+      ]);
+
+      final usersSnapshot = futures[0] as QuerySnapshot;
+      final ratingsSnapshot = futures[1] as QuerySnapshot;
+
+      // Build rating lookup map for O(1) access
+      final Map<String, List<Map<String, dynamic>>> userRatings = {};
+
+      for (QueryDocumentSnapshot doc in ratingsSnapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final ratedUserId = data['ratedUserId'] as String?;
+        final ratedUserName = data['ratedUserName'] as String?;
+
+        if (ratedUserId != null) {
+          userRatings[ratedUserId] ??= [];
+          userRatings[ratedUserId]!.add(data);
+        }
+        if (ratedUserName != null) {
+          userRatings[ratedUserName] ??= [];
+          userRatings[ratedUserName]!.add(data);
+        }
+      }
 
       List<Map<String, dynamic>> tempForemen = [];
       List<Map<String, dynamic>> tempWorkshops = [];
 
       for (QueryDocumentSnapshot doc in usersSnapshot.docs) {
         Map<String, dynamic> userData = doc.data() as Map<String, dynamic>;
-        userData['uid'] = doc.id; // Add document ID
+        userData['uid'] = doc.id;
 
-        // Get user's average rating and total ratings
-        Map<String, dynamic> ratingData = await _getUserRatingData(doc.id);
+        // Calculate rating data using pre-fetched ratings
+        Map<String, dynamic> ratingData = _calculateRatingData(
+          doc.id,
+          userData['fullName'] ?? userData['name'] ?? '',
+          userRatings,
+        );
         userData['averageRating'] = ratingData['averageRating'];
         userData['totalRatings'] = ratingData['totalRatings'];
 
@@ -137,103 +159,48 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
     }
   }
 
-  // Get user's rating data from Firestore - matches RatingDetailPage logic
-  Future<Map<String, dynamic>> _getUserRatingData(String userId) async {
+  // OPTIMIZED: Calculate rating data from pre-fetched data
+  Map<String, dynamic> _calculateRatingData(
+    String userId,
+    String userName,
+    Map<String, List<Map<String, dynamic>>> userRatings,
+  ) {
     try {
-      // Get user data to find the user's name
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .get();
-      
-      if (!userDoc.exists) {
-        return {'averageRating': 0.0, 'totalRatings': 0};
-      }
-      
-      Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
-      String userName = userData['fullName'] ?? userData['name'] ?? '';
-
-      print('Fetching ratings for user: $userId, name: $userName');
-
-      List<QuerySnapshot> queries = [];
-
-      // Try searching by userId first
-      try {
-        queries.add(
-          await FirebaseFirestore.instance
-              .collection('ratings')
-              .where('ratedUserId', isEqualTo: userId)
-              .get(),
-        );
-      } catch (e) {
-        print('Query with ratedUserId failed: $e');
+      // Check cache first
+      String cacheKey = '$userId-$userName';
+      if (_ratingCache.containsKey(cacheKey)) {
+        return _ratingCache[cacheKey]!;
       }
 
-      // Try searching by user name (since ratedUserId might be null in your data)
-      if (userName.isNotEmpty) {
-        try {
-          queries.add(
-            await FirebaseFirestore.instance
-                .collection('ratings')
-                .where('ratedUserName', isEqualTo: userName)
-                .get(),
-          );
-        } catch (e) {
-          print('Query with ratedUserName failed: $e');
+      List<Map<String, dynamic>> ratings = [];
+
+      // Get ratings by userId
+      if (userRatings.containsKey(userId)) {
+        ratings.addAll(userRatings[userId]!);
+      }
+
+      // Get ratings by userName (avoid duplicates)
+      if (userName.isNotEmpty && userRatings.containsKey(userName)) {
+        ratings.addAll(userRatings[userName]!);
+      }
+
+      // Remove duplicates based on rating content
+      final Set<String> processed = {};
+      final List<Map<String, dynamic>> uniqueRatings = [];
+
+      for (var rating in ratings) {
+        String key =
+            '${rating['ratingUserId']}-${rating['ratedUserId']}-${rating['rating']}-${rating['createdAt']}';
+        if (!processed.contains(key)) {
+          processed.add(key);
+          uniqueRatings.add(rating);
         }
       }
-
-      // Get all ratings and filter manually (fallback)
-      try {
-        final allRatings =
-            await FirebaseFirestore.instance.collection('ratings').get();
-
-        // Filter documents where this user was rated
-        final filteredDocs = allRatings.docs.where((doc) {
-          final data = doc.data();
-          return data['ratedUserName'] == userName ||
-              data['ratedUserId'] == userId;
-        }).toList();
-
-        // Create a mock QuerySnapshot with filtered documents
-        if (filteredDocs.isNotEmpty) {
-          queries.add(allRatings); // We'll filter later
-        }
-      } catch (e) {
-        print('Fallback query failed: $e');
-      }
-
-      // Combine all results and remove duplicates
-      Set<String> processedIds = {};
-      List<QueryDocumentSnapshot> allDocs = [];
-
-      for (var query in queries) {
-        for (var doc in query.docs) {
-          if (!processedIds.contains(doc.id)) {
-            final data = doc.data() as Map<String, dynamic>;
-
-            // Check if this document is for our user (since we might have gotten all docs)
-            bool isForThisUser = data['ratedUserName'] == userName ||
-                data['ratedUserId'] == userId;
-
-            if (isForThisUser) {
-              allDocs.add(doc);
-              processedIds.add(doc.id);
-            }
-          }
-        }
-      }
-
-      print('Total received ratings found: ${allDocs.length}');
 
       double totalRatingSum = 0.0;
       int ratingsCount = 0;
 
-      // Process ONLY RECEIVED ratings (ratings given TO this user by others)
-      for (var doc in allDocs) {
-        final data = doc.data() as Map<String, dynamic>;
-        print('Processing received rating document: ${doc.id}');
-
+      for (var data in uniqueRatings) {
         int rating = 0;
         if (data['rating'] != null) {
           if (data['rating'] is int) {
@@ -245,34 +212,29 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
           }
         }
 
-        print('Extracted rating: $rating');
-
         if (rating >= 1 && rating <= 5) {
           totalRatingSum += rating;
           ratingsCount++;
-        } else {
-          print('Invalid rating value: $rating');
         }
       }
 
-      // Calculate average rating from all received ratings
-      double averageRating = ratingsCount > 0 ? totalRatingSum / ratingsCount : 0.0;
+      double averageRating =
+          ratingsCount > 0 ? totalRatingSum / ratingsCount : 0.0;
 
-      print('Final calculations:');
-      print('Total ratings count: $ratingsCount');
-      print('Average rating: $averageRating');
-
-      return {
+      final result = {
         'averageRating': averageRating,
         'totalRatings': ratingsCount,
       };
+
+      // Cache the result
+      _ratingCache[cacheKey] = result;
+      return result;
     } catch (e) {
-      print('Error fetching rating data: $e');
+      print('Error calculating rating data: $e');
       return {'averageRating': 0.0, 'totalRatings': 0};
     }
   }
 
-  // Generate initials from full name
   String _getInitials(String fullName) {
     List<String> names = fullName.trim().split(' ');
     if (names.isEmpty) return 'U';
@@ -297,18 +259,20 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
           ],
         ),
         child: ListTile(
-          onTap: () {
-            Navigator.push(
+          onTap: () async {
+            await Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => RatingDetailPage(
-                  initials: initials,
-                  name: name,
-                  role: isForeman ? "Foreman" : "Workshop Owner",
-                  userData: userData, // Pass the complete user data
-                ),
+                builder:
+                    (_) => RatingDetailPage(
+                      initials: initials,
+                      name: name,
+                      role: isForeman ? "Foreman" : "Workshop Owner",
+                      userData: userData,
+                    ),
               ),
-            ).then((_) => _fetchUsers()); // Refresh the list after returning
+            );
+            _fetchUsers();
           },
           leading: CircleAvatar(
             backgroundColor: Colors.grey[300],
@@ -324,7 +288,6 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
           subtitle: Row(
             children: [
               if (totalRatings > 0) ...[
-                // Display numerical rating prominently
                 Text(
                   rating.toStringAsFixed(1),
                   style: const TextStyle(
@@ -334,20 +297,18 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
                   ),
                 ),
                 const SizedBox(width: 8),
-                // Display stars
                 ...List.generate(5, (index) {
                   return Icon(
                     index < rating.floor()
                         ? Icons.star
                         : (index < rating.ceil() && rating % 1 != 0)
-                            ? Icons.star_half
-                            : Icons.star_border,
+                        ? Icons.star_half
+                        : Icons.star_border,
                     size: 16,
                     color: Colors.orange,
                   );
                 }),
                 const SizedBox(width: 6),
-                // Display total ratings count
                 Text(
                   "($totalRatings ${totalRatings == 1 ? 'rating' : 'ratings'})",
                   style: const TextStyle(fontSize: 12, color: Colors.grey),
@@ -413,11 +374,10 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
 
   @override
   Widget build(BuildContext context) {
-    // Determine workshopName for passing to RatingListPage
     String workshopName =
         widget.userRole.toLowerCase() == 'workshop'
             ? widget.userName
-            : 'Ali Workshop'; // Replace with your actual foreman's workshop lookup if possible
+            : 'Ali Workshop';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
@@ -425,18 +385,73 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
         backgroundColor: primaryColor,
         elevation: 0,
         leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onPressed: () {
-              Scaffold.of(context).openDrawer();
-            },
-          ),
+          builder:
+              (context) => IconButton(
+                icon: const Icon(Icons.menu, color: Colors.white),
+                onPressed: () {
+                  Scaffold.of(context).openDrawer();
+                },
+              ),
         ),
         title: const Text(
           "Find Foreman / Workshop",
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        actions: [],
+        centerTitle: false,
+        actions: [
+          TextButton.icon(
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (_) => RatingListPage(
+                        userRole: widget.userRole.toLowerCase(),
+                        userName: widget.userName,
+                        workshopName: workshopName,
+                        toRateList:
+                            widget.userRole.toLowerCase() == 'foreman'
+                                ? workshops
+                                    .map(
+                                      (w) => {
+                                        'initials': _getInitials(
+                                          w['fullName'] ?? '',
+                                        ),
+                                        'name': w['fullName'],
+                                        'uid': w['uid'],
+                                        'role': 'workshop_owner',
+                                      },
+                                    )
+                                    .toList()
+                                : foremen
+                                    .map(
+                                      (f) => {
+                                        'initials': _getInitials(
+                                          f['fullName'] ?? '',
+                                        ),
+                                        'name': f['fullName'],
+                                        'uid': f['uid'],
+                                        'role': 'foreman',
+                                      },
+                                    )
+                                    .toList(),
+                        myReviewsList: [],
+                      ),
+                ),
+              );
+              _fetchUsers();
+            },
+            icon: const Icon(Icons.reviews, color: Colors.white),
+            label: const Text(
+              "My Reviews",
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
+        ],
       ),
       drawer: SidebarMenu(
         userRole:
@@ -468,7 +483,7 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
                   child: Text(
                     "I'm looking\nfor workshop\nowner and\nforeman.",
                     style: TextStyle(
-                      fontSize: 64,
+                      fontSize: 48,
                       fontWeight: FontWeight.bold,
                       height: 1.2,
                     ),
