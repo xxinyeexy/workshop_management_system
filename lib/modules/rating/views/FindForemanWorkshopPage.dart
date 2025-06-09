@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
 import '../../sidebar.dart';
 import 'package:workshop_management_system/modules/rating/views/RatingDetails.dart';
 import 'package:workshop_management_system/modules/rating/views/RatingListPage.dart';
@@ -35,6 +36,7 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
 
   // Cache for rating data to avoid repeated queries
   final Map<String, Map<String, dynamic>> _ratingCache = {};
+  StreamSubscription<QuerySnapshot>? _ratingsSubscription;
 
   late final Color primaryColor =
       widget.userRole.toLowerCase() == 'foreman'
@@ -86,6 +88,25 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _fetchUsers();
+    _setupRatingsListener();
+  }
+
+  @override
+  void dispose() {
+    _ratingsSubscription?.cancel();
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  void _setupRatingsListener() {
+    _ratingsSubscription = FirebaseFirestore.instance
+        .collection('ratings')
+        .snapshots()
+        .listen((_) {
+          // When ratings change, clear cache and refresh data
+          _ratingCache.clear();
+          _fetchUsers();
+        });
   }
 
   // OPTIMIZED: Fetch users and ratings in parallel using batching
@@ -272,7 +293,9 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
                     ),
               ),
             );
-            _fetchUsers();
+            // Clear cache and refresh data after returning from RatingDetailPage
+            _ratingCache.clear();
+            await _fetchUsers();
           },
           leading: CircleAvatar(
             backgroundColor: Colors.grey[300],
@@ -308,11 +331,6 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
                     color: Colors.orange,
                   );
                 }),
-                const SizedBox(width: 6),
-                Text(
-                  "($totalRatings ${totalRatings == 1 ? 'rating' : 'ratings'})",
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
               ] else ...[
                 const Text(
                   "No ratings yet",
@@ -512,11 +530,5 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 }
