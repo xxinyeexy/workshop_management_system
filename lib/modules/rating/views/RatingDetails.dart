@@ -29,7 +29,8 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
   int totalRatings = 0;
   int totalReviews = 0; // Reviews with comments
   Map<int, int> starDistribution = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0};
-  List<Map<String, dynamic>> reviewsWithComments = []; // Only received reviews with comments
+  List<Map<String, dynamic>> reviewsWithComments =
+      []; // Only received reviews with comments
 
   @override
   void initState() {
@@ -61,47 +62,53 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
 
       // Try searching by userId first
       try {
-        queries.add(await FirebaseFirestore.instance
-            .collection('ratings')
-            .where('ratedUserId', isEqualTo: userId)
-            .get());
+        queries.add(
+          await FirebaseFirestore.instance
+              .collection('ratings')
+              .where('ratedUserId', isEqualTo: userId)
+              .get(),
+        );
       } catch (e) {
         print('Query with ratedUserId failed: $e');
       }
 
       // Try searching by user name (since ratedUserId is null in your data)
       try {
-        queries.add(await FirebaseFirestore.instance
-            .collection('ratings')
-            .where('ratedUserName', isEqualTo: userName)
-            .get());
+        queries.add(
+          await FirebaseFirestore.instance
+              .collection('ratings')
+              .where('ratedUserName', isEqualTo: userName)
+              .get(),
+        );
       } catch (e) {
         print('Query with ratedUserName failed: $e');
       }
 
       // Try alternative name field
       try {
-        queries.add(await FirebaseFirestore.instance
-            .collection('ratings')
-            .where('ratedUserName', isEqualTo: widget.name)
-            .get());
+        queries.add(
+          await FirebaseFirestore.instance
+              .collection('ratings')
+              .where('ratedUserName', isEqualTo: widget.name)
+              .get(),
+        );
       } catch (e) {
         print('Query with widget.name failed: $e');
       }
 
       // Get all ratings and filter manually (fallback)
       try {
-        final allRatings = await FirebaseFirestore.instance
-            .collection('ratings')
-            .get();
+        final allRatings =
+            await FirebaseFirestore.instance.collection('ratings').get();
 
         // Filter documents where this user was rated
-        final filteredDocs = allRatings.docs.where((doc) {
-          final data = doc.data();
-          return data['ratedUserName'] == userName ||
-              data['ratedUserName'] == widget.name ||
-              data['ratedUserId'] == userId;
-        }).toList();
+        final filteredDocs =
+            allRatings.docs.where((doc) {
+              final data = doc.data();
+              return data['ratedUserName'] == userName ||
+                  data['ratedUserName'] == widget.name ||
+                  data['ratedUserId'] == userId;
+            }).toList();
 
         // Create a mock QuerySnapshot with filtered documents
         if (filteredDocs.isNotEmpty) {
@@ -121,7 +128,8 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
             final data = doc.data() as Map<String, dynamic>;
 
             // Check if this document is for our user (since we might have gotten all docs)
-            bool isForThisUser = data['ratedUserName'] == userName ||
+            bool isForThisUser =
+                data['ratedUserName'] == userName ||
                 data['ratedUserName'] == widget.name ||
                 data['ratedUserId'] == userId;
 
@@ -162,30 +170,36 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
 
         if (rating >= 1 && rating <= 5) {
           // Count for average calculation and star distribution
-          tempStarDistribution[rating] = (tempStarDistribution[rating] ?? 0) + 1;
+          tempStarDistribution[rating] =
+              (tempStarDistribution[rating] ?? 0) + 1;
           totalRatingSum += rating;
           ratingsCount++;
 
           // Get reviewer info (the person who gave the rating) - try different field name variations
-          String reviewerName = data['reviewerName'] ??
+          String reviewerName =
+              data['reviewerName'] ??
               data['raterName'] ??
               data['fromUserName'] ??
               data['givenByName'] ??
               'Anonymous';
-          String reviewerRole = data['reviewerRole'] ??
+          String reviewerRole =
+              data['reviewerRole'] ??
               data['raterRole'] ??
               data['fromUserRole'] ??
               data['givenByRole'] ??
               '';
-          String comment = (data['comment'] ??
-                  data['review'] ??
-                  data['reviewText'] ??
-                  data['feedback'] ??
-                  '')
-              .toString()
-              .trim();
+          String comment =
+              (data['comment'] ??
+                      data['review'] ??
+                      data['reviewText'] ??
+                      data['feedback'] ??
+                      '')
+                  .toString()
+                  .trim();
 
-          print('Reviewer: $reviewerName, Role: $reviewerRole, Comment: $comment');
+          print(
+            'Reviewer: $reviewerName, Role: $reviewerRole, Comment: $comment',
+          );
 
           // Add to reviews regardless of comment (for now, to see all data)
           Map<String, dynamic> ratingData = {
@@ -195,8 +209,14 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
             'reviewerRole': reviewerRole,
             'comment': comment,
             'rating': rating,
-            'date': _formatDate(data['createdAt'] as Timestamp? ?? data['timestamp'] as Timestamp?),
-            'rawDate': data['createdAt'] as Timestamp? ?? data['timestamp'] as Timestamp? ?? Timestamp.now(),
+            'date': _formatDate(
+              data['createdAt'] as Timestamp? ??
+                  data['timestamp'] as Timestamp?,
+            ),
+            'rawDate':
+                data['createdAt'] as Timestamp? ??
+                data['timestamp'] as Timestamp? ??
+                Timestamp.now(),
           };
 
           // Only add to reviews if there's a comment
@@ -259,10 +279,14 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
           });
           break;
         case 'Highest Rated':
-          reviewsWithComments.sort((a, b) => b['rating'].compareTo(a['rating']));
+          reviewsWithComments.sort(
+            (a, b) => b['rating'].compareTo(a['rating']),
+          );
           break;
         case 'Lowest Rated':
-          reviewsWithComments.sort((a, b) => a['rating'].compareTo(b['rating']));
+          reviewsWithComments.sort(
+            (a, b) => a['rating'].compareTo(b['rating']),
+          );
           break;
       }
     });
@@ -337,10 +361,7 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
         children: [
           const Text(
             'Summary',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
           Row(
@@ -394,11 +415,16 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
                     child: LinearProgressIndicator(
                       value: percentage,
                       backgroundColor: Colors.grey[200],
-                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.orange),
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        Colors.orange,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Text('$percentDisplay%', style: const TextStyle(fontSize: 14)),
+                  Text(
+                    '$percentDisplay%',
+                    style: const TextStyle(fontSize: 14),
+                  ),
                 ],
               ),
             );
@@ -429,16 +455,17 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
               });
             }
           },
-          items: <String>[
-            'Most Recent',
-            'Highest Rated',
-            'Lowest Rated',
-          ].map<DropdownMenuItem<String>>((String value) {
-            return DropdownMenuItem<String>(
-              value: value,
-              child: Text(value),
-            );
-          }).toList(),
+          items:
+              <String>[
+                'Most Recent',
+                'Highest Rated',
+                'Lowest Rated',
+              ].map<DropdownMenuItem<String>>((String value) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Text(value),
+                );
+              }).toList(),
         ),
       ),
     );
@@ -505,21 +532,6 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
             ),
             const SizedBox(height: 8),
             Text(comment, style: const TextStyle(fontSize: 14)),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(
-                  Icons.thumb_up_alt_outlined,
-                  size: 16,
-                  color: Colors.orange[700],
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  'Helpful (12)',
-                  style: TextStyle(fontSize: 12, color: Colors.orange[700]),
-                ),
-              ],
-            ),
           ],
         ),
       ),
@@ -536,9 +548,10 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final Color primaryColor = widget.role.toLowerCase().contains('foreman')
-        ? const Color(0xFF2FB668)
-        : const Color(0xFF4260DB);
+    final Color primaryColor =
+        widget.role.toLowerCase().contains('foreman')
+            ? const Color(0xFF2FB668)
+            : const Color(0xFF4260DB);
 
     return Scaffold(
       appBar: AppBar(
@@ -549,46 +562,47 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
         backgroundColor: primaryColor,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // Profile Card
-                _buildProfileCard(primaryColor),
-                const SizedBox(height: 16),
-                // Summary Card
-                _buildSummaryCard(primaryColor),
-                const SizedBox(height: 16),
-                // Reviews Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '$totalReviews reviews found',
-                      style: const TextStyle(fontWeight: FontWeight.w500),
-                    ),
-                    _buildSortDropdown(),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                // Reviews List
-                if (reviewsWithComments.isEmpty)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(32.0),
-                      child: Text(
-                        'No reviews yet',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
+      body:
+          isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  // Profile Card
+                  _buildProfileCard(primaryColor),
+                  const SizedBox(height: 16),
+                  // Summary Card
+                  _buildSummaryCard(primaryColor),
+                  const SizedBox(height: 16),
+                  // Reviews Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '$totalReviews reviews found',
+                        style: const TextStyle(fontWeight: FontWeight.w500),
                       ),
-                    ),
-                  )
-                else
-                  ...reviewsWithComments.map(
-                    (review) => _buildReviewCard(review, primaryColor),
+                      _buildSortDropdown(),
+                    ],
                   ),
-              ],
-            ),
+                  const SizedBox(height: 8),
+                  // Reviews List
+                  if (reviewsWithComments.isEmpty)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32.0),
+                        child: Text(
+                          'No reviews yet',
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      ),
+                    )
+                  else
+                    ...reviewsWithComments.map(
+                      (review) => _buildReviewCard(review, primaryColor),
+                    ),
+                ],
+              ),
     );
   }
 
@@ -624,8 +638,10 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Text(_getDisplayRole(widget.role),
-                     style: const TextStyle(color: Colors.grey)),
+                Text(
+                  _getDisplayRole(widget.role),
+                  style: const TextStyle(color: Colors.grey),
+                ),
                 const SizedBox(height: 4),
                 Row(
                   children: [
@@ -634,9 +650,10 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
                       (index) => Icon(
                         index < averageRating.floor()
                             ? Icons.star
-                            : (index < averageRating.ceil() && averageRating % 1 != 0)
-                                ? Icons.star_half
-                                : Icons.star_border,
+                            : (index < averageRating.ceil() &&
+                                averageRating % 1 != 0)
+                            ? Icons.star_half
+                            : Icons.star_border,
                         size: 16,
                         color: Colors.orange,
                       ),

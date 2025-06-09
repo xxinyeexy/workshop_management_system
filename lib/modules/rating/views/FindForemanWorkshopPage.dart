@@ -137,30 +137,135 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
     }
   }
 
-  // Get user's rating data from Firestore
+  // Get user's rating data from Firestore - matches RatingDetailPage logic
   Future<Map<String, dynamic>> _getUserRatingData(String userId) async {
     try {
-      QuerySnapshot ratingsSnapshot =
+      // Get user data to find the user's name
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+      
+      if (!userDoc.exists) {
+        return {'averageRating': 0.0, 'totalRatings': 0};
+      }
+      
+      Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+      String userName = userData['fullName'] ?? userData['name'] ?? '';
+
+      print('Fetching ratings for user: $userId, name: $userName');
+
+      List<QuerySnapshot> queries = [];
+
+      // Try searching by userId first
+      try {
+        queries.add(
           await FirebaseFirestore.instance
               .collection('ratings')
               .where('ratedUserId', isEqualTo: userId)
-              .get();
-
-      if (ratingsSnapshot.docs.isEmpty) {
-        return {'averageRating': 0.0, 'totalRatings': 0};
+              .get(),
+        );
+      } catch (e) {
+        print('Query with ratedUserId failed: $e');
       }
 
-      double totalRating = 0.0;
-      int count = ratingsSnapshot.docs.length;
-
-      for (QueryDocumentSnapshot doc in ratingsSnapshot.docs) {
-        Map<String, dynamic> ratingData = doc.data() as Map<String, dynamic>;
-        totalRating += (ratingData['rating'] ?? 0).toDouble();
+      // Try searching by user name (since ratedUserId might be null in your data)
+      if (userName.isNotEmpty) {
+        try {
+          queries.add(
+            await FirebaseFirestore.instance
+                .collection('ratings')
+                .where('ratedUserName', isEqualTo: userName)
+                .get(),
+          );
+        } catch (e) {
+          print('Query with ratedUserName failed: $e');
+        }
       }
 
-      double averageRating = totalRating / count;
+      // Get all ratings and filter manually (fallback)
+      try {
+        final allRatings =
+            await FirebaseFirestore.instance.collection('ratings').get();
 
-      return {'averageRating': averageRating, 'totalRatings': count};
+        // Filter documents where this user was rated
+        final filteredDocs = allRatings.docs.where((doc) {
+          final data = doc.data();
+          return data['ratedUserName'] == userName ||
+              data['ratedUserId'] == userId;
+        }).toList();
+
+        // Create a mock QuerySnapshot with filtered documents
+        if (filteredDocs.isNotEmpty) {
+          queries.add(allRatings); // We'll filter later
+        }
+      } catch (e) {
+        print('Fallback query failed: $e');
+      }
+
+      // Combine all results and remove duplicates
+      Set<String> processedIds = {};
+      List<QueryDocumentSnapshot> allDocs = [];
+
+      for (var query in queries) {
+        for (var doc in query.docs) {
+          if (!processedIds.contains(doc.id)) {
+            final data = doc.data() as Map<String, dynamic>;
+
+            // Check if this document is for our user (since we might have gotten all docs)
+            bool isForThisUser = data['ratedUserName'] == userName ||
+                data['ratedUserId'] == userId;
+
+            if (isForThisUser) {
+              allDocs.add(doc);
+              processedIds.add(doc.id);
+            }
+          }
+        }
+      }
+
+      print('Total received ratings found: ${allDocs.length}');
+
+      double totalRatingSum = 0.0;
+      int ratingsCount = 0;
+
+      // Process ONLY RECEIVED ratings (ratings given TO this user by others)
+      for (var doc in allDocs) {
+        final data = doc.data() as Map<String, dynamic>;
+        print('Processing received rating document: ${doc.id}');
+
+        int rating = 0;
+        if (data['rating'] != null) {
+          if (data['rating'] is int) {
+            rating = data['rating'];
+          } else if (data['rating'] is double) {
+            rating = data['rating'].toInt();
+          } else if (data['rating'] is String) {
+            rating = int.tryParse(data['rating']) ?? 0;
+          }
+        }
+
+        print('Extracted rating: $rating');
+
+        if (rating >= 1 && rating <= 5) {
+          totalRatingSum += rating;
+          ratingsCount++;
+        } else {
+          print('Invalid rating value: $rating');
+        }
+      }
+
+      // Calculate average rating from all received ratings
+      double averageRating = ratingsCount > 0 ? totalRatingSum / ratingsCount : 0.0;
+
+      print('Final calculations:');
+      print('Total ratings count: $ratingsCount');
+      print('Average rating: $averageRating');
+
+      return {
+        'averageRating': averageRating,
+        'totalRatings': ratingsCount,
+      };
     } catch (e) {
       print('Error fetching rating data: $e');
       return {'averageRating': 0.0, 'totalRatings': 0};
@@ -196,13 +301,12 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder:
-                    (_) => RatingDetailPage(
-                      initials: initials,
-                      name: name,
-                      role: isForeman ? "Foreman" : "Workshop Owner",
-                      userData: userData, // Pass the complete user data
-                    ),
+                builder: (_) => RatingDetailPage(
+                  initials: initials,
+                  name: name,
+                  role: isForeman ? "Foreman" : "Workshop Owner",
+                  userData: userData, // Pass the complete user data
+                ),
               ),
             ).then((_) => _fetchUsers()); // Refresh the list after returning
           },
@@ -219,22 +323,34 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
           ),
           subtitle: Row(
             children: [
-              if (rating > 0) ...[
+              if (totalRatings > 0) ...[
+                // Display numerical rating prominently
+                Text(
+                  rating.toStringAsFixed(1),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Display stars
                 ...List.generate(5, (index) {
                   return Icon(
                     index < rating.floor()
                         ? Icons.star
-                        : index < rating
-                        ? Icons.star_half
-                        : Icons.star_border,
+                        : (index < rating.ceil() && rating % 1 != 0)
+                            ? Icons.star_half
+                            : Icons.star_border,
                     size: 16,
                     color: Colors.orange,
                   );
                 }),
                 const SizedBox(width: 6),
+                // Display total ratings count
                 Text(
-                  "(${rating.toStringAsFixed(1)}) $totalRatings reviews",
-                  style: const TextStyle(fontSize: 12),
+                  "($totalRatings ${totalRatings == 1 ? 'rating' : 'ratings'})",
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ] else ...[
                 const Text(
@@ -309,71 +425,18 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
         backgroundColor: primaryColor,
         elevation: 0,
         leading: Builder(
-          builder:
-              (context) => IconButton(
-                icon: const Icon(Icons.menu, color: Colors.white),
-                onPressed: () {
-                  Scaffold.of(context).openDrawer();
-                },
-              ),
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: Colors.white),
+            onPressed: () {
+              Scaffold.of(context).openDrawer();
+            },
+          ),
         ),
         title: const Text(
           "Find Foreman / Workshop",
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        actions: [
-          TextButton.icon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder:
-                      (_) => RatingListPage(
-                        userRole: widget.userRole.toLowerCase(),
-                        userName: widget.userName,
-                        workshopName: workshopName,
-                        toRateList:
-                            widget.userRole.toLowerCase() == 'foreman'
-                                ? workshops
-                                    .map(
-                                      (w) => {
-                                        'initials': _getInitials(
-                                          w['fullName'] ?? '',
-                                        ),
-                                        'name': w['fullName'],
-                                        'uid': w['uid'],
-                                        'role': 'workshop_owner',
-                                      },
-                                    )
-                                    .toList()
-                                : foremen
-                                    .map(
-                                      (f) => {
-                                        'initials': _getInitials(
-                                          f['fullName'] ?? '',
-                                        ),
-                                        'name': f['fullName'],
-                                        'uid': f['uid'],
-                                        'role': 'foreman',
-                                      },
-                                    )
-                                    .toList(),
-                        myReviewsList: [],
-                      ),
-                ),
-              );
-            },
-            icon: const Icon(Icons.reviews, color: Colors.white),
-            label: const Text(
-              "My Reviews",
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-          ),
-        ],
+        actions: [],
       ),
       drawer: SidebarMenu(
         userRole:
