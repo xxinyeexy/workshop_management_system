@@ -1,0 +1,90 @@
+{
+  "project_info": {
+    "project_number": "183542449378",
+    "project_id": "workshop-management-syst-1690e",
+    "storage_bucket": "workshop-management-syst-1690e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:183542449378:android:f46a90d3d8c21aeb91cabb",
+        "android_client_info": {
+          "package_name": "com.example.workshop_application"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "183542449378-1vo6ps348c1o7df56lm9lhktmcdeu7nk.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.workshop_application",
+            "certificate_hash": "660389df096af4d2f94f770667ea62f6babe8c37"
+          }
+        },
+        {
+          "client_id": "183542449378-05iq1t04tebc22es8g770s8bcs2642f2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC0xCZGPqqy7cWrddmAro3JbvrYzf2qYnE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "183542449378-05iq1t04tebc22es8g770s8bcs2642f2.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "183542449378-1nsl3vvc21tkfvic409vqf89ddsku261.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.workshopManagementSystem"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:183542449378:android:501d2ba934a54e1491cabb",
+        "android_client_info": {
+          "package_name": "com.example.workshop_management_system"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "183542449378-05iq1t04tebc22es8g770s8bcs2642f2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC0xCZGPqqy7cWrddmAro3JbvrYzf2qYnE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "183542449378-05iq1t04tebc22es8g770s8bcs2642f2.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "183542449378-1nsl3vvc21tkfvic409vqf89ddsku261.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.workshopManagementSystem"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

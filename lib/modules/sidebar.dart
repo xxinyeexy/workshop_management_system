@@ -1,0 +1,349 @@
+import 'package:flutter/material.dart';
+import 'package:workshop_management_system/modules/rating/views/FindForemanWorkshopPage.dart';
+import 'package:workshop_management_system/modules/schedule/views/schedule.dart';
+
+enum UserRole { WorkshopOwner, Foreman }
+
+class SidebarMenu extends StatefulWidget {
+  final UserRole userRole;
+  final String userName;
+  final String userPosition;
+  final String selectedTitle;
+  final ValueChanged<String>? onSelectedTitleChanged;
+  final String? originalUserRole;
+
+  const SidebarMenu({
+    super.key,
+    required this.userRole,
+    required this.userName,
+    required this.userPosition,
+    required this.selectedTitle,
+    this.onSelectedTitleChanged,
+    this.originalUserRole,
+  });
+
+  @override
+  State<SidebarMenu> createState() => _SidebarMenuState();
+}
+
+class _SidebarMenuState extends State<SidebarMenu> {
+  int pendingRatingsCount = 0;
+
+  // Assume workshopName is same as userName if workshop owner, or fetch accordingly for foreman
+  late String workshopName;
+
+  @override
+  void initState() {
+    super.initState();
+    _setWorkshopName();
+    _updatePendingRatingsCount();
+  }
+
+  @override
+  void didUpdateWidget(SidebarMenu oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _updatePendingRatingsCount();
+  }
+
+  void _setWorkshopName() {
+    if (widget.userRole == UserRole.WorkshopOwner) {
+      workshopName = widget.userName;
+    } else {
+      // For demo, assign a fixed workshop name for foreman
+      workshopName = 'xixi workshop'; // Replace with real lookup if needed
+    }
+  }
+
+  void _updatePendingRatingsCount() {
+    final userRoleString =
+        widget.userRole == UserRole.Foreman ? 'foreman' : 'workshop';
+    final pendingRatings = RatingService().getPendingRatingsForUser(
+      userRoleString,
+      widget.userName,
+      workshopName,
+    );
+    if (mounted) {
+      setState(() {
+        pendingRatingsCount = pendingRatings.length;
+      });
+    }
+  }
+
+  Color get primaryColor {
+    switch (widget.userRole) {
+      case UserRole.WorkshopOwner:
+        return const Color(0xFF4361EE);
+      case UserRole.Foreman:
+        return const Color(0xFF3498DB);
+    }
+  }
+
+  String get userRoleString {
+    return widget.originalUserRole ??
+        (widget.userRole == UserRole.Foreman ? 'foreman' : 'workshop owner');
+  }
+
+  String get ratingPageRoleString {
+    switch (widget.userRole) {
+      case UserRole.Foreman:
+        return 'foreman';
+      case UserRole.WorkshopOwner:
+        return 'workshop';
+    }
+  }
+
+  Widget buildPageWithDrawer(String pageTitle, Widget bodyContent) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(pageTitle),
+        leading: Builder(
+          builder:
+              (context) => IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+        ),
+      ),
+      drawer: SidebarMenu(
+        userRole: widget.userRole,
+        userName: widget.userName,
+        userPosition: widget.userPosition,
+        selectedTitle: pageTitle,
+        onSelectedTitleChanged: widget.onSelectedTitleChanged,
+        originalUserRole: widget.originalUserRole,
+      ),
+      body: bodyContent,
+    );
+  }
+
+  void _navigateTo(BuildContext context, String title) {
+    Navigator.of(context).pop(); // close drawer
+
+    widget.onSelectedTitleChanged?.call(title);
+
+    Widget page;
+
+    switch (title) {
+      case 'Schedule':
+        page = Schedule(
+          userName: widget.userName,
+          userRole: userRoleString,
+          userPosition: widget.userPosition,
+        );
+        break;
+
+      case 'Inventory':
+        page = buildPageWithDrawer(
+          'Inventory',
+          const Center(child: Text('Inventory Page')),
+        );
+        break;
+
+      case 'Marketplace':
+        page = buildPageWithDrawer(
+          'Marketplace',
+          const Center(child: Text('Marketplace Page')),
+        );
+        break;
+
+      case 'Payroll':
+        page = buildPageWithDrawer(
+          'Payroll',
+          const Center(child: Text('Payroll Page')),
+        );
+        break;
+
+      case 'Ratings':
+        page = FindForemanWorkshopPage(
+          userRole: ratingPageRoleString,
+          userName: widget.userName,
+          originalUserRole: userRoleString,
+          userPosition: widget.userPosition,
+          enumUserRole: widget.userRole,
+        );
+        break;
+
+      case 'Profile':
+        page = buildPageWithDrawer(
+          'Profile',
+          const Center(child: Text('Profile Page')),
+        );
+        break;
+
+      default:
+        page = Schedule(
+          userName: widget.userName,
+          userRole: userRoleString,
+          userPosition: widget.userPosition,
+        );
+    }
+
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => page));
+  }
+
+  Widget _buildMenuItem({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    int? badgeCount,
+  }) {
+    final isSelected = widget.selectedTitle == title;
+    return ListTile(
+      leading: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Icon(icon, color: isSelected ? primaryColor : Colors.grey[700]),
+          if (badgeCount != null && badgeCount > 0)
+            Positioned(
+              right: -8,
+              top: -8,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                child: Text(
+                  badgeCount.toString(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        ],
+      ),
+      title: Row(
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              color: isSelected ? primaryColor : Colors.black,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+          if (badgeCount != null && badgeCount > 0) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                badgeCount.toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+      selected: isSelected,
+      onTap: () {
+        if (title == 'Ratings') {
+          _updatePendingRatingsCount();
+        }
+        _navigateTo(context, title);
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Update pending ratings count when drawer is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updatePendingRatingsCount();
+    });
+
+    return Drawer(
+      child: SafeArea(
+        child: Container(
+          color: Colors.white,
+          child: Column(
+            children: [
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    _buildMenuItem(
+                      context: context,
+                      icon: Icons.calendar_today,
+                      title: 'Schedule',
+                    ),
+                    _buildMenuItem(
+                      context: context,
+                      icon: Icons.inventory,
+                      title: 'Inventory',
+                    ),
+                    _buildMenuItem(
+                      context: context,
+                      icon: Icons.store,
+                      title: 'Marketplace',
+                    ),
+                    _buildMenuItem(
+                      context: context,
+                      icon: Icons.payment,
+                      title: 'Payroll',
+                    ),
+                    _buildMenuItem(
+                      context: context,
+                      icon: Icons.star,
+                      title: 'Ratings',
+                      badgeCount: pendingRatingsCount,
+                    ),
+                    _buildMenuItem(
+                      context: context,
+                      icon: Icons.person,
+                      title: 'Profile',
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(),
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Colors.grey[300],
+                  child: const Icon(Icons.person, color: Colors.grey),
+                ),
+                title: Text(
+                  widget.userName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  widget.userPosition,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    minimumSize: const Size(double.infinity, 40),
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                  },
+                  icon: const Icon(Icons.logout),
+                  label: const Text('Log Out'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
