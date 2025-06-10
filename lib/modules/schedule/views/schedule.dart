@@ -1,9 +1,79 @@
 import 'package:flutter/material.dart';
 import 'package:workshop_management_system/modules/schedule/views/notifications.dart';
 import 'package:workshop_management_system/modules/schedule/views/tasks.dart';
+import 'package:workshop_management_system/modules/rating/views/RatingListPage.dart';
 
-class Schedule extends StatefulWidget{
-  const Schedule({super.key});
+import '../../sidebar.dart'; // import your SidebarMenu here
+
+// Global rating service to manage pending ratings across app
+class RatingService {
+  static final RatingService _instance = RatingService._internal();
+  factory RatingService() => _instance;
+  RatingService._internal();
+
+  final List<Map<String, dynamic>> _pendingRatings = [];
+
+  void addPendingRating(Map<String, dynamic> ratingData) {
+    // Check if a similar rating already exists
+    bool exists = _pendingRatings.any(
+      (rating) =>
+          rating['contractId'] == ratingData['contractId'] &&
+          rating['forUserRole'] == ratingData['forUserRole'],
+    );
+
+    if (!exists) {
+      _pendingRatings.add(ratingData);
+    }
+  }
+
+  // Now filter by user role AND user identity (foremanName or workshopName)
+  List<Map<String, dynamic>> getPendingRatingsForUser(
+    String userRole,
+    String userName,
+    String workshopName,
+  ) {
+    return _pendingRatings.where((rating) {
+      if (rating['forUserRole'] != userRole) return false;
+
+      if (userRole == 'foreman') {
+        return rating['foremanName'] == userName;
+      } else if (userRole == 'workshop') {
+        return rating['workshopName'] == workshopName;
+      }
+      return false;
+    }).toList();
+  }
+
+  void removePendingRating(Map<String, dynamic> ratingData) {
+    _pendingRatings.removeWhere(
+      (rating) =>
+          rating['contractId'] == ratingData['contractId'] &&
+          rating['forUserRole'] == ratingData['forUserRole'],
+    );
+  }
+
+  // Debug method to print all pending ratings
+  void debugPrintRatings() {
+    print('All pending ratings:');
+    for (var rating in _pendingRatings) {
+      print(
+        'Rating for ${rating['forUserRole']}: ${rating['name']} (Workshop: ${rating['workshopName']}, Foreman: ${rating['foremanName']})',
+      );
+    }
+  }
+}
+
+class Schedule extends StatefulWidget {
+  final String userName;
+  final String userRole;
+  final String userPosition;
+
+  const Schedule({
+    super.key,
+    required this.userName,
+    required this.userRole,
+    required this.userPosition,
+  });
 
   @override
   State<StatefulWidget> createState() {
@@ -11,11 +81,24 @@ class Schedule extends StatefulWidget{
   }
 }
 
-class _ScheduleState extends State<Schedule>{
-
+class _ScheduleState extends State<Schedule> {
   TimeOfDay startTime = const TimeOfDay(hour: 8, minute: 0);
   TimeOfDay endTime = const TimeOfDay(hour: 18, minute: 0);
   bool showNotification = true;
+  bool isContractTerminated = false;
+
+  late String workshopName; // Will hold logged-in user's workshop name
+
+  @override
+  void initState() {
+    super.initState();
+    // Set workshopName depending on role — if foreman, associate workshop must be known
+    // For demo, assuming foreman's workshop is "Ali Workshop"
+    workshopName =
+        widget.userRole.toLowerCase() == 'workshop'
+            ? widget.userName
+            : 'xixi workshop'; // Replace with real lookup if possible
+  }
 
   Future<void> _selectTime({required bool isStart}) async {
     final TimeOfDay? picked = await showTimePicker(
@@ -39,31 +122,197 @@ class _ScheduleState extends State<Schedule>{
     final period = time.period == DayPeriod.am ? 'AM' : 'PM';
     return '$hour:$minute $period';
   }
-  
+
+  void _terminateContract() async {
+    // Show confirmation dialog
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Terminate Contract'),
+          content: const Text(
+            'Are you sure you want to terminate this contract? This will trigger a mutual rating process.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text(
+                'Terminate',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      setState(() {
+        isContractTerminated = true;
+      });
+
+      final String contractId =
+          'contract_${DateTime.now().millisecondsSinceEpoch}';
+      final DateTime now = DateTime.now();
+      final String formattedDate = '${now.day}/${now.month}/${now.year}';
+
+      String otherPartyName;
+      String otherPartyInitials;
+      String otherPartyRole;
+      String foremanName;
+      String currentWorkshopName;
+
+      if (widget.userRole.toLowerCase() == 'foreman') {
+        // Foreman is logged in, workshop is associated workshop
+        currentWorkshopName = workshopName;
+        foremanName = widget.userName;
+
+        otherPartyName = currentWorkshopName;
+        otherPartyInitials = _getInitials(currentWorkshopName);
+        otherPartyRole = 'workshop';
+      } else {
+        // Workshop owner logged in
+        currentWorkshopName = widget.userName;
+        foremanName =
+            'John Foreman'; // Replace with actual foreman name linked to contract
+
+        otherPartyName = foremanName;
+        otherPartyInitials = _getInitials(foremanName);
+        otherPartyRole = 'foreman';
+      }
+
+      // Create rating data for workshop owner
+      final workshopRatingData = {
+        'contractId': contractId,
+        'forUserRole': 'workshop',
+        'name':
+            widget.userRole.toLowerCase() == 'foreman'
+                ? widget.userName
+                : otherPartyName,
+        'initials':
+            widget.userRole.toLowerCase() == 'foreman'
+                ? _getInitials(widget.userName)
+                : otherPartyInitials,
+        'date': formattedDate,
+        'message':
+            'Contract terminated. Please rate your experience working together.',
+        'targetRole': 'foreman',
+        'workshopName': currentWorkshopName,
+        'foremanName': foremanName,
+      };
+
+      // Create rating data for foreman
+      final foremanRatingData = {
+        'contractId': contractId,
+        'forUserRole': 'foreman',
+        'name':
+            widget.userRole.toLowerCase() == 'workshop'
+                ? widget.userName
+                : otherPartyName,
+        'initials':
+            widget.userRole.toLowerCase() == 'workshop'
+                ? _getInitials(widget.userName)
+                : otherPartyInitials,
+        'date': formattedDate,
+        'message':
+            'Contract terminated. Please rate your experience working together.',
+        'targetRole': 'workshop',
+        'workshopName': currentWorkshopName,
+        'foremanName': foremanName,
+      };
+
+      // Add ratings for both parties
+      RatingService().addPendingRating(workshopRatingData);
+      RatingService().addPendingRating(foremanRatingData);
+
+      // Force rebuild of the sidebar to update notification badge
+      if (mounted) {
+        setState(() {
+          // Rebuild the scaffold to trigger sidebar rebuild
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder:
+                  (context) => Schedule(
+                    userName: widget.userName,
+                    userRole: widget.userRole,
+                    userPosition: widget.userPosition,
+                  ),
+            ),
+          );
+        });
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Contract terminated successfully. Rating requests have been created.',
+          ),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  String _getInitials(String name) {
+    return name
+        .split(' ')
+        .map((n) => n.isNotEmpty ? n[0] : '')
+        .join()
+        .toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final primaryColor = Colors.blue;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Schedule'),
+        backgroundColor: primaryColor,
+        leading: Builder(
+          builder:
+              (context) => IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+        ),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const NotificationPage()),
+                MaterialPageRoute(
+                  builder: (context) => const NotificationPage(),
+                ),
               );
             },
             child: const Text(
               'Notification',
-              style: TextStyle(
-                color: Colors.black, // Make sure text is visible on AppBar
-                fontSize: 16,
-              ),
+              style: TextStyle(color: Colors.white, fontSize: 16),
             ),
           ),
         ],
       ),
-       body: ListView(
+      drawer: SidebarMenu(
+        userRole:
+            widget.userRole.toLowerCase() == 'foreman'
+                ? UserRole.Foreman
+                : UserRole.WorkshopOwner,
+        userName: widget.userName,
+        userPosition: widget.userPosition,
+        selectedTitle: 'Schedule',
+        originalUserRole: widget.userRole,
+        onSelectedTitleChanged: (title) {
+          // Optional: sync state or navigation logic here
+        },
+      ),
+      body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           if (showNotification)
@@ -93,20 +342,30 @@ class _ScheduleState extends State<Schedule>{
               ),
             ),
           const SizedBox(height: 20),
-          const Text("Workshop Name:", style: TextStyle(fontWeight: FontWeight.w500)),
+          const Text(
+            "Workshop Name:",
+            style: TextStyle(fontWeight: FontWeight.w500),
+          ),
           const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
                 child: TextFormField(
-                  initialValue: "Ali Workshop",
+                  initialValue: workshopName,
                   readOnly: true,
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    fillColor:
+                        isContractTerminated ? Colors.grey[100] : Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(
+                        color: isContractTerminated ? Colors.red : Colors.grey,
+                      ),
                     ),
                   ),
                 ),
@@ -114,14 +373,44 @@ class _ScheduleState extends State<Schedule>{
               const SizedBox(width: 8),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
+                  backgroundColor:
+                      isContractTerminated ? Colors.grey : Colors.red,
                   foregroundColor: Colors.white,
                 ),
-                onPressed: () {},
-                child: const Text("Terminate Contract"),
+                onPressed: isContractTerminated ? null : _terminateContract,
+                child: Text(
+                  isContractTerminated ? "Terminated" : "Terminate Contract",
+                ),
               ),
             ],
           ),
+
+          if (isContractTerminated)
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning, color: Colors.red[700], size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Contract terminated. Please navigate to Ratings to complete the mutual rating process.',
+                      style: TextStyle(
+                        color: Colors.red[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
           const SizedBox(height: 20),
           Row(
             children: const [
@@ -135,8 +424,14 @@ class _ScheduleState extends State<Schedule>{
             children: [
               Expanded(
                 child: GestureDetector(
-                  onTap: () => _selectTime(isStart: true),
-                  child: TimeFieldDisplay(label: formatTime(startTime)),
+                  onTap:
+                      isContractTerminated
+                          ? null
+                          : () => _selectTime(isStart: true),
+                  child: TimeFieldDisplay(
+                    label: formatTime(startTime),
+                    isDisabled: isContractTerminated,
+                  ),
                 ),
               ),
               const Padding(
@@ -145,8 +440,14 @@ class _ScheduleState extends State<Schedule>{
               ),
               Expanded(
                 child: GestureDetector(
-                  onTap: () => _selectTime(isStart: false),
-                  child: TimeFieldDisplay(label: formatTime(endTime)),
+                  onTap:
+                      isContractTerminated
+                          ? null
+                          : () => _selectTime(isStart: false),
+                  child: TimeFieldDisplay(
+                    label: formatTime(endTime),
+                    isDisabled: isContractTerminated,
+                  ),
                 ),
               ),
             ],
@@ -155,37 +456,43 @@ class _ScheduleState extends State<Schedule>{
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Task", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+              const Text(
+                "Task",
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              ),
               TextButton(
-                onPressed:() {
-                  Navigator.push(context,
-                  MaterialPageRoute(builder: (context)=>const TasksPage()),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const TasksPage()),
                   );
                 },
-            child: const Text(
-            "See All",
-            style: TextStyle(color: Colors.blue),
-            ),
-            )
+                child: const Text(
+                  "See All",
+                  style: TextStyle(color: Colors.blue),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
-          const TaskCard(
+          TaskCard(
             title: "Engine Repair",
             subtitle: "Repair the WMS 9011's car engine",
             date: "Sunday, March 30, 2025",
             time: "9:00 AM - 12:00 PM",
-            status: "In Progress",
-            statusColor: Color(0xFF2D9CDB),
+            status: isContractTerminated ? "Cancelled" : "In Progress",
+            statusColor:
+                isContractTerminated ? Colors.red : const Color(0xFF2D9CDB),
           ),
           const SizedBox(height: 12),
-          const TaskCard(
+          TaskCard(
             title: "Bumper Repair",
-            subtitle: "Repair the CWS 1654’s car bumper",
+            subtitle: "Repair the CWS 1654's car bumper",
             date: "Monday, March 31, 2025",
             time: "10:00 AM – 12:00 PM",
-            status: "Scheduled",
-            statusColor: Color(0xFF56CCF2),
+            status: isContractTerminated ? "Cancelled" : "Scheduled",
+            statusColor:
+                isContractTerminated ? Colors.red : const Color(0xFF56CCF2),
           ),
         ],
       ),
@@ -195,22 +502,34 @@ class _ScheduleState extends State<Schedule>{
 
 class TimeFieldDisplay extends StatelessWidget {
   final String label;
-  const TimeFieldDisplay({super.key, required this.label});
+  final bool isDisabled;
+
+  const TimeFieldDisplay({
+    super.key,
+    required this.label,
+    this.isDisabled = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDisabled ? Colors.grey[100] : Colors.white,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(
+          color: isDisabled ? Colors.grey.shade400 : Colors.grey.shade300,
+        ),
       ),
       child: Row(
         children: [
-          const Icon(Icons.access_time, size: 18),
+          Icon(
+            Icons.access_time,
+            size: 18,
+            color: isDisabled ? Colors.grey : null,
+          ),
           const SizedBox(width: 8),
-          Text(label),
+          Text(label, style: TextStyle(color: isDisabled ? Colors.grey : null)),
         ],
       ),
     );
@@ -251,7 +570,10 @@ class TaskCard extends StatelessWidget {
               Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: statusColor.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(20),
