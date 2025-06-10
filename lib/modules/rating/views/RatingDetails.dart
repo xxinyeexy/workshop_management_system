@@ -170,42 +170,57 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
 
       if (!isForThisUser) continue;
 
-      int rating = _extractRating(data);
-      if (rating < 1 || rating > 5) continue;
+      // Extract and validate rating
+      dynamic ratingValue = data['rating'];
+      int rating = 0;
 
-      // Update counters and distribution
-      tempStarDistribution[rating] = (tempStarDistribution[rating] ?? 0) + 1;
-      totalRatingSum += rating;
-      ratingsCount++;
+      if (ratingValue != null) {
+        if (ratingValue is int) {
+          rating = ratingValue;
+        } else if (ratingValue is double) {
+          rating = ratingValue.round();
+        } else if (ratingValue is String) {
+          rating = int.tryParse(ratingValue) ?? 0;
+        }
+      }
 
-      // Process review data
-      String reviewerName = _extractReviewerName(data);
-      String reviewerRole = _extractReviewerRole(data);
-      String comment = _extractComment(data);
+      // Only process valid ratings (1-5)
+      if (rating >= 1 && rating <= 5) {
+        // Update counters and distribution
+        tempStarDistribution[rating] = (tempStarDistribution[rating] ?? 0) + 1;
+        totalRatingSum += rating;
+        ratingsCount++;
 
-      if (comment.isNotEmpty) {
-        Map<String, dynamic> ratingData = {
-          'documentId': doc.id,
-          'reviewerName': reviewerName,
-          'reviewerRole': reviewerRole,
-          'comment': comment,
-          'rating': rating,
-          'date': _formatDate(
-            data['createdAt'] as Timestamp? ?? data['timestamp'] as Timestamp?,
-          ),
-          'rawDate':
+        // Process review data
+        String reviewerName = _extractReviewerName(data);
+        String reviewerRole = _extractReviewerRole(data);
+        String comment = _extractComment(data);
+
+        if (comment.isNotEmpty) {
+          Map<String, dynamic> ratingData = {
+            'documentId': doc.id,
+            'reviewerName': reviewerName,
+            'reviewerRole': reviewerRole,
+            'comment': comment,
+            'rating': rating,
+            'date': _formatDate(
               data['createdAt'] as Timestamp? ??
-              data['timestamp'] as Timestamp? ??
-              Timestamp.now(),
-          'imageBase64': data['imageBase64'],
-        };
+                  data['timestamp'] as Timestamp?,
+            ),
+            'rawDate':
+                data['createdAt'] as Timestamp? ??
+                data['timestamp'] as Timestamp? ??
+                Timestamp.now(),
+            'imageBase64': data['imageBase64'],
+          };
 
-        tempReviewsWithComments.add(ratingData);
-        reviewsCount++;
+          tempReviewsWithComments.add(ratingData);
+          reviewsCount++;
+        }
       }
     }
 
-    // Calculate average
+    // Calculate average rating
     double avgRating = ratingsCount > 0 ? totalRatingSum / ratingsCount : 0.0;
 
     // Sort reviews by date (most recent first)
@@ -228,7 +243,18 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
     };
     _ratingCache[cacheKey] = processedData;
 
-    _updateStateFromCachedData(processedData);
+    if (mounted) {
+      setState(() {
+        averageRating = avgRating;
+        totalRatings = ratingsCount;
+        totalReviews = reviewsCount;
+        starDistribution = Map<int, int>.from(tempStarDistribution);
+        reviewsWithComments = List<Map<String, dynamic>>.from(
+          tempReviewsWithComments,
+        );
+        isLoading = false;
+      });
+    }
   }
 
   void _updateStateFromCachedData(Map<String, dynamic> data) {
