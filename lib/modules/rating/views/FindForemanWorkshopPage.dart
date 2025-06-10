@@ -159,6 +159,10 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
         userData['averageRating'] = ratingData['averageRating'];
         userData['totalRatings'] = ratingData['totalRatings'];
 
+        print(
+          'DEBUG: User: ${userData['fullName'] ?? userData['name']}, Calculated Average Rating: ${userData['averageRating']}, Total Ratings: ${userData['totalRatings']}',
+        );
+
         // Separate users by role
         if (userData['role'] == 'foreman') {
           tempForemen.add(userData);
@@ -186,10 +190,12 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
     String userName,
     Map<String, List<Map<String, dynamic>>> userRatings,
   ) {
+    print('DEBUG: Calculating rating for user: $userName ($userId)');
     try {
       // Check cache first
       String cacheKey = '$userId-$userName';
       if (_ratingCache.containsKey(cacheKey)) {
+        print('DEBUG: Cache hit for $userName ($userId)');
         return _ratingCache[cacheKey]!;
       }
 
@@ -204,54 +210,84 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
       if (userName.isNotEmpty && userRatings.containsKey(userName)) {
         ratings.addAll(userRatings[userName]!);
       }
+      print(
+        'DEBUG: Raw ratings found for $userName ($userId): ${ratings.length}',
+      );
 
-      // Remove duplicates based on rating content
+      // Remove duplicates based on rating content and rated user
       final Set<String> processed = {};
       final List<Map<String, dynamic>> uniqueRatings = [];
 
-      for (var rating in ratings) {
+      for (var ratingData in ratings) {
+        // A more robust key combining relevant fields to identify truly unique ratings for this user
         String key =
-            '${rating['ratingUserId']}-${rating['ratedUserId']}-${rating['rating']}-${rating['createdAt']}';
+            '${ratingData['reviewerId']}-${ratingData['ratedUserId']}-${ratingData['comment']}-${ratingData['rating']}-${ratingData['createdAt']}';
         if (!processed.contains(key)) {
           processed.add(key);
-          uniqueRatings.add(rating);
+          uniqueRatings.add(ratingData);
         }
       }
+      print(
+        'DEBUG: Unique ratings after deduplication for $userName ($userId): ${uniqueRatings.length}',
+      );
 
       double totalRatingSum = 0.0;
-      int ratingsCount = 0;
+      int ratingsCountForAverage = 0;
 
       for (var data in uniqueRatings) {
-        int rating = 0;
-        if (data['rating'] != null) {
-          if (data['rating'] is int) {
-            rating = data['rating'];
-          } else if (data['rating'] is double) {
-            rating = data['rating'].toInt();
-          } else if (data['rating'] is String) {
-            rating = int.tryParse(data['rating']) ?? 0;
+        dynamic ratingValue = data['rating'];
+        double currentRatingDouble = 0.0;
+
+        if (ratingValue != null) {
+          if (ratingValue is int) {
+            currentRatingDouble = ratingValue.toDouble();
+          } else if (ratingValue is double) {
+            currentRatingDouble = ratingValue;
+          } else if (ratingValue is String) {
+            currentRatingDouble = double.tryParse(ratingValue) ?? 0.0;
           }
         }
 
-        if (rating >= 1 && rating <= 5) {
-          totalRatingSum += rating;
-          ratingsCount++;
+        // Extract comment and check if it's not empty
+        String comment =
+            (data['comment'] ??
+                    data['review'] ??
+                    data['reviewText'] ??
+                    data['feedback'] ??
+                    '')
+                .toString()
+                .trim();
+
+        if (currentRatingDouble >= 1.0 &&
+            currentRatingDouble <= 5.0 &&
+            comment.isNotEmpty) {
+          totalRatingSum += currentRatingDouble;
+          ratingsCountForAverage++;
+          print(
+            'DEBUG: Processing rating for $userName: Value: $currentRatingDouble, Comment: "$comment", Current Sum: $totalRatingSum, Current Count: $ratingsCountForAverage',
+          );
         }
       }
 
       double averageRating =
-          ratingsCount > 0 ? totalRatingSum / ratingsCount : 0.0;
+          ratingsCountForAverage > 0
+              ? totalRatingSum / ratingsCountForAverage
+              : 0.0;
 
       final result = {
         'averageRating': averageRating,
-        'totalRatings': ratingsCount,
+        'totalRatings': ratingsCountForAverage,
       };
+
+      print(
+        'DEBUG: Final calculated result for $userName: Average Rating: ${result['averageRating']}, Total Ratings: ${result['totalRatings']}',
+      );
 
       // Cache the result
       _ratingCache[cacheKey] = result;
       return result;
     } catch (e) {
-      print('Error calculating rating data: $e');
+      print('Error calculating rating data for $userName ($userId): $e');
       return {'averageRating': 0.0, 'totalRatings': 0};
     }
   }

@@ -39,15 +39,13 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
   void initState() {
     super.initState();
 
-    // If userData is passed from the previous page with pre-calculated ratings, use it
-    if (widget.userData != null &&
-        widget.userData!.containsKey('averageRating') &&
-        widget.userData!.containsKey('totalRatings')) {
-      averageRating = widget.userData!['averageRating']?.toDouble() ?? 0.0;
-      totalRatings = widget.userData!['totalRatings'] ?? 0;
-
-      // Still need to fetch detailed reviews, but we can show basic info immediately
-      _quickLoadBasicInfo();
+    if (widget.userData != null) {
+      String userId = widget.userData!['uid'];
+      String userName =
+          widget.userData!['fullName'] ??
+          widget.userData!['name'] ??
+          widget.name;
+      _fetchRatingData(userId, userName);
     }
   }
 
@@ -68,31 +66,6 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
     }
   }
 
-  // Quick load basic info if available from userData
-  void _quickLoadBasicInfo() {
-    if (totalRatings > 0) {
-      // Estimate star distribution based on average rating
-      int roundedRating = averageRating.round();
-      starDistribution = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0};
-      starDistribution[roundedRating] = totalRatings;
-
-      setState(() {
-        isLoading = false; // Show basic info immediately
-      });
-
-      // Still fetch detailed data in background
-      if (widget.userData != null) {
-        String userId = widget.userData!['uid'];
-        String userName =
-            widget.userData!['fullName'] ??
-            widget.userData!['name'] ??
-            widget.name;
-        _fetchDetailedRatingData(userId, userName);
-      }
-    }
-  }
-
-  // OPTIMIZED: Single query approach with caching
   Future<void> _fetchRatingData(String userId, String userName) async {
     if (widget.userData == null) return;
 
@@ -107,7 +80,21 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
       String cacheKey = '$userId-$userName';
       if (_ratingCache.containsKey(cacheKey)) {
         final cachedData = _ratingCache[cacheKey]!;
-        _updateStateFromCachedData(cachedData);
+        if (mounted) {
+          setState(() {
+            averageRating = cachedData['averageRating'];
+            totalRatings = cachedData['totalRatings'];
+            totalReviews = cachedData['totalReviews'];
+            starDistribution = Map<int, int>.from(
+              cachedData['starDistribution'],
+            );
+            reviewsWithComments = List<Map<String, dynamic>>.from(
+              cachedData['reviewsWithComments'],
+            );
+            isLoading = false;
+          });
+        }
+        print('DEBUG: Data loaded from cache for $userName ($userId)');
         return;
       }
 
@@ -119,33 +106,14 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
       await _processRatingsData(ratingsSnapshot, userId, userName, cacheKey);
     } catch (e) {
       print('Error fetching rating data: $e');
-      setState(() {
-        isLoading = false;
-      });
-    }
-  }
-
-  // Fetch detailed data in background (when basic info is already shown)
-  Future<void> _fetchDetailedRatingData(String userId, String userName) async {
-    try {
-      String cacheKey = '$userId-$userName';
-      if (_ratingCache.containsKey(cacheKey)) {
-        final cachedData = _ratingCache[cacheKey]!;
-        _updateStateFromCachedData(cachedData);
-        return;
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
       }
-
-      final ratingsSnapshot = await FirebaseFirestore.instance
-          .collection('ratings')
-          .get(const GetOptions(source: Source.server));
-
-      await _processRatingsData(ratingsSnapshot, userId, userName, cacheKey);
-    } catch (e) {
-      print('Error fetching detailed rating data: $e');
     }
   }
 
-  // OPTIMIZED: Process all ratings data in one pass
   Future<void> _processRatingsData(
     QuerySnapshot ratingsSnapshot,
     String userId,
@@ -155,12 +123,15 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
     List<Map<String, dynamic>> tempReviewsWithComments = [];
     Map<int, int> tempStarDistribution = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0};
     double totalRatingSum = 0.0;
-    int ratingsCount = 0;
-    int reviewsCount = 0;
+    int ratingsCountForAverage = 0;
+
+    print('DEBUG: Starting _processRatingsData for user: $userName ($userId)');
+    print('DEBUG: Total documents in snapshot: ${ratingsSnapshot.docs.length}');
 
     // Process ratings in a single pass
     for (var doc in ratingsSnapshot.docs) {
       final data = doc.data() as Map<String, dynamic>;
+      print('DEBUG: Processing document ID: ${doc.id}, data: $data');
 
       // Check if this rating is for our user
       bool isForThisUser =
@@ -168,41 +139,57 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
           data['ratedUserName'] == widget.name ||
           data['ratedUserId'] == userId;
 
-      if (!isForThisUser) continue;
+      if (!isForThisUser) {
+        print('DEBUG: Document not for this user, skipping.');
+        continue;
+      }
 
       // Extract and validate rating
       dynamic ratingValue = data['rating'];
-      int rating = 0;
+      double currentRatingDouble = 0.0;
+      int currentRatingInt = 0; // For star distribution and display
 
       if (ratingValue != null) {
         if (ratingValue is int) {
-          rating = ratingValue;
+          currentRatingDouble = ratingValue.toDouble();
+          currentRatingInt = ratingValue;
         } else if (ratingValue is double) {
-          rating = ratingValue.round();
+          currentRatingDouble = ratingValue;
+          currentRatingInt =
+              currentRatingDouble.round(); // Round for distribution
         } else if (ratingValue is String) {
-          rating = int.tryParse(ratingValue) ?? 0;
+          // Attempt to parse as double first, then round to int
+          currentRatingDouble = double.tryParse(ratingValue) ?? 0.0;
+          currentRatingInt = currentRatingDouble.round();
         }
       }
+      print(
+        'DEBUG: Rating value: $ratingValue, parsed currentRatingDouble: $currentRatingDouble, currentRatingInt: $currentRatingInt',
+      );
 
-      // Only process valid ratings (1-5)
-      if (rating >= 1 && rating <= 5) {
-        // Update counters and distribution
-        tempStarDistribution[rating] = (tempStarDistribution[rating] ?? 0) + 1;
-        totalRatingSum += rating;
-        ratingsCount++;
-
-        // Process review data
-        String reviewerName = _extractReviewerName(data);
-        String reviewerRole = _extractReviewerRole(data);
+      // Only consider valid ratings (1-5) for any calculation
+      if (currentRatingDouble >= 1.0 && currentRatingDouble <= 5.0) {
         String comment = _extractComment(data);
+        print(
+          'DEBUG: Comment extracted: "$comment" (is empty: ${comment.isEmpty})',
+        );
 
         if (comment.isNotEmpty) {
+          // Increment counts and sum ONLY if there's a non-empty comment
+          tempStarDistribution[currentRatingInt] =
+              (tempStarDistribution[currentRatingInt] ?? 0) + 1;
+          totalRatingSum += currentRatingDouble;
+          ratingsCountForAverage++;
+          print(
+            'DEBUG: Added to calculation. currentRatingDouble: $currentRatingDouble, totalRatingSum: $totalRatingSum, ratingsCountForAverage: $ratingsCountForAverage',
+          );
+
           Map<String, dynamic> ratingData = {
             'documentId': doc.id,
-            'reviewerName': reviewerName,
-            'reviewerRole': reviewerRole,
+            'reviewerName': _extractReviewerName(data),
+            'reviewerRole': _extractReviewerRole(data),
             'comment': comment,
-            'rating': rating,
+            'rating': currentRatingDouble, // Store the double for display
             'date': _formatDate(
               data['createdAt'] as Timestamp? ??
                   data['timestamp'] as Timestamp?,
@@ -215,13 +202,29 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
           };
 
           tempReviewsWithComments.add(ratingData);
-          reviewsCount++;
+          print(
+            'DEBUG: Added to reviewsWithComments. Current length: ${tempReviewsWithComments.length}',
+          );
         }
       }
     }
 
-    // Calculate average rating
-    double avgRating = ratingsCount > 0 ? totalRatingSum / ratingsCount : 0.0;
+    // Calculate average rating based on reviews with comments
+    double avgRating =
+        ratingsCountForAverage > 0
+            ? totalRatingSum / ratingsCountForAverage
+            : 0.0;
+
+    print(
+      'DEBUG: Final Calculation - totalRatingSum: $totalRatingSum, ratingsCountForAverage: $ratingsCountForAverage, avgRating: $avgRating',
+    );
+    print('DEBUG: Final tempStarDistribution: $tempStarDistribution');
+    print(
+      'DEBUG: Final tempReviewsWithComments length: ${tempReviewsWithComments.length}',
+    );
+    print(
+      'DEBUG: Final tempReviewsWithComments content: $tempReviewsWithComments',
+    ); // Print content to verify
 
     // Sort reviews by date (most recent first)
     tempReviewsWithComments.sort((a, b) {
@@ -236,8 +239,9 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
     // Cache the processed data
     final processedData = {
       'averageRating': avgRating,
-      'totalRatings': ratingsCount,
-      'totalReviews': reviewsCount,
+      'totalRatings':
+          ratingsCountForAverage, // Total ratings now equals reviews with comments
+      'totalReviews': tempReviewsWithComments.length,
       'starDistribution': tempStarDistribution,
       'reviewsWithComments': tempReviewsWithComments,
     };
@@ -246,30 +250,19 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
     if (mounted) {
       setState(() {
         averageRating = avgRating;
-        totalRatings = ratingsCount;
-        totalReviews = reviewsCount;
+        totalRatings =
+            ratingsCountForAverage; // Update state with consistent count
+        totalReviews = tempReviewsWithComments.length;
         starDistribution = Map<int, int>.from(tempStarDistribution);
         reviewsWithComments = List<Map<String, dynamic>>.from(
           tempReviewsWithComments,
         );
         isLoading = false;
+        print(
+          'DEBUG: State updated. averageRating: $averageRating, totalRatings: $totalRatings, totalReviews: $totalReviews, starDistribution: $starDistribution',
+        );
       });
     }
-  }
-
-  void _updateStateFromCachedData(Map<String, dynamic> data) {
-    setState(() {
-      averageRating = data['averageRating'];
-      totalRatings = data['totalRatings'];
-      totalReviews = data['totalReviews'];
-      starDistribution = Map<int, int>.from(data['starDistribution']);
-      reviewsWithComments = List<Map<String, dynamic>>.from(
-        data['reviewsWithComments'],
-      );
-      isLoading = false;
-    });
-
-    _sortReviews();
   }
 
   // Helper methods for data extraction
@@ -321,12 +314,12 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
           break;
         case 'Highest Rated':
           reviewsWithComments.sort(
-            (a, b) => b['rating'].compareTo(a['rating']),
+            (a, b) => (b['rating'] as double).compareTo(a['rating'] as double),
           );
           break;
         case 'Lowest Rated':
           reviewsWithComments.sort(
-            (a, b) => a['rating'].compareTo(b['rating']),
+            (a, b) => (a['rating'] as double).compareTo(b['rating'] as double),
           );
           break;
       }
@@ -427,7 +420,7 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
                     ),
                   ),
                   Text(
-                    '$totalRatings ratings',
+                    '$totalReviews ratings',
                     style: const TextStyle(fontSize: 13, color: Colors.grey),
                   ),
                 ],
@@ -438,7 +431,7 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
           ...List.generate(5, (index) {
             int star = 5 - index;
             int count = starDistribution[star] ?? 0;
-            double percentage = totalRatings > 0 ? count / totalRatings : 0.0;
+            double percentage = totalReviews > 0 ? count / totalReviews : 0.0;
             int percentDisplay = (percentage * 100).round();
 
             return Padding(
@@ -511,7 +504,7 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
     final String reviewerName = review['reviewerName'] ?? 'Anonymous';
     final String reviewerRole = review['reviewerRole'] ?? '';
     final String comment = review['comment'] ?? '';
-    final int rating = review['rating'] ?? 0;
+    final double rating = review['rating'] as double; // Cast to double
     final String date = review['date'] ?? '';
     final String? imageBase64 = review['imageBase64'];
 
@@ -560,7 +553,11 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
               children: List.generate(
                 5,
                 (i) => Icon(
-                  i < rating ? Icons.star : Icons.star_border,
+                  i < rating.floor()
+                      ? Icons.star
+                      : (i < rating.ceil() && rating % 1 != 0)
+                      ? Icons.star_half
+                      : Icons.star_border,
                   size: 18,
                   color: Colors.orange,
                 ),
@@ -651,8 +648,8 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      totalRatings > 0
-                          ? '(${averageRating.toStringAsFixed(1)} from $totalRatings reviews)'
+                      totalReviews > 0
+                          ? '(${averageRating.toStringAsFixed(1)} from $totalReviews reviews)'
                           : '(0.0 from 0 reviews)',
                       style: const TextStyle(fontSize: 13, color: Colors.grey),
                     ),
@@ -666,7 +663,6 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
     );
   }
 
-  // Add this method to refresh data
   Future<void> _refreshData() async {
     if (widget.userData != null) {
       setState(() {
