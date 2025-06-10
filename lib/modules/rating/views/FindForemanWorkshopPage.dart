@@ -102,10 +102,93 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
     _ratingsSubscription = FirebaseFirestore.instance
         .collection('ratings')
         .snapshots()
-        .listen((_) {
-          // When ratings change, clear cache and refresh data
-          _ratingCache.clear();
-          _fetchUsers();
+        .listen((snapshot) async {
+          // Make async to allow await
+          if (!mounted) return; // Ensure widget is still mounted
+
+          for (var docChange in snapshot.docChanges) {
+            final data = docChange.doc.data() as Map<String, dynamic>?;
+            if (data == null) continue;
+
+            final ratedUserId = data['ratedUserId'] as String?;
+            final ratedUserName = data['ratedUserName'] as String?;
+
+            if (ratedUserId == null && ratedUserName == null) continue;
+
+            // Find the user in current lists (foremen or workshops)
+            Map<String, dynamic>? userToUpdate;
+            bool isForemanUser = false;
+            int userIndex = -1;
+
+            userIndex = foremen.indexWhere(
+              (user) =>
+                  user['uid'] == ratedUserId ||
+                  user['fullName'] == ratedUserName,
+            );
+            if (userIndex != -1) {
+              userToUpdate = foremen[userIndex];
+              isForemanUser = true;
+            } else {
+              userIndex = workshops.indexWhere(
+                (user) =>
+                    user['uid'] == ratedUserId ||
+                    user['fullName'] == ratedUserName,
+              );
+              if (userIndex != -1) {
+                userToUpdate = workshops[userIndex];
+              }
+            }
+
+            if (userToUpdate != null) {
+              // Fetch all ratings for this specific user
+              // This is more efficient than re-fetching all ratings in the whole collection
+              final QuerySnapshot userRatingsSnapshot =
+                  await FirebaseFirestore.instance
+                      .collection('ratings')
+                      .where('ratedUserId', isEqualTo: userToUpdate['uid'])
+                      .get();
+
+              // Build a temporary userRatings map for just this user
+              final Map<String, List<Map<String, dynamic>>>
+              singleUserRatingsMap = {};
+              for (QueryDocumentSnapshot ratingDoc
+                  in userRatingsSnapshot.docs) {
+                final ratingData = ratingDoc.data() as Map<String, dynamic>;
+                final id = ratingData['ratedUserId'] as String?;
+                final name = ratingData['ratedUserName'] as String?;
+                if (id != null) {
+                  singleUserRatingsMap[id] ??= [];
+                  singleUserRatingsMap[id]!.add(ratingData);
+                }
+                if (name != null) {
+                  singleUserRatingsMap[name] ??= [];
+                  singleUserRatingsMap[name]!.add(ratingData);
+                }
+              }
+
+              // Recalculate rating for the specific user using their subset of ratings
+              final Map<String, dynamic> updatedRatingData =
+                  _calculateRatingData(
+                    userToUpdate['uid'],
+                    userToUpdate['fullName'],
+                    singleUserRatingsMap, // Pass only this user's ratings map
+                  );
+
+              setState(() {
+                if (isForemanUser) {
+                  foremen[userIndex]['averageRating'] =
+                      updatedRatingData['averageRating'];
+                  foremen[userIndex]['totalRatings'] =
+                      updatedRatingData['totalRatings'];
+                } else {
+                  workshops[userIndex]['averageRating'] =
+                      updatedRatingData['averageRating'];
+                  workshops[userIndex]['totalRatings'] =
+                      updatedRatingData['totalRatings'];
+                }
+              });
+            }
+          }
         });
   }
 
