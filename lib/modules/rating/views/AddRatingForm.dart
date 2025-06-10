@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class AddRatingFormPage extends StatefulWidget {
   final String initials;
@@ -28,6 +31,8 @@ class _RatingFormPageState extends State<AddRatingFormPage> {
   double _rating = 4.0;
   final TextEditingController _reviewController = TextEditingController();
   bool _isSubmitting = false;
+  String? _imageBase64; // Store base64 string here
+  final ImagePicker _picker = ImagePicker(); // For image picking
 
   @override
   void initState() {
@@ -40,6 +45,35 @@ class _RatingFormPageState extends State<AddRatingFormPage> {
   void dispose() {
     _reviewController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024, // Limit image size
+        maxHeight: 1024,
+        imageQuality: 85, // Compress image
+      );
+
+      if (pickedFile != null) {
+        final File imageFile = File(pickedFile.path);
+        final bytes = await imageFile.readAsBytes();
+        setState(() {
+          _imageBase64 = base64Encode(bytes); // Encode to base64 string
+        });
+      }
+    } catch (e) {
+      print('Error picking image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error picking image. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _submitRating() async {
@@ -62,14 +96,11 @@ class _RatingFormPageState extends State<AddRatingFormPage> {
       }
 
       final timestamp = FieldValue.serverTimestamp();
-
-      // Determine roles correctly based on who is reviewing whom
-      final String reviewerRole =
+      final reviewerRole =
           widget.role == 'Workshop' ? 'foreman' : 'workshop_owner';
-      final String ratedUserRole =
+      final ratedUserRole =
           widget.role == 'Workshop' ? 'workshop_owner' : 'foreman';
 
-      // Get the current user's document to get their name
       final userDoc =
           await FirebaseFirestore.instance
               .collection('users')
@@ -84,7 +115,7 @@ class _RatingFormPageState extends State<AddRatingFormPage> {
         }
       }
 
-      // Create the rating document
+      // Create the rating document with base64 image string
       final ratingData = {
         'reviewerId': currentUser.uid,
         'ratedUserId': widget.userData!['uid'],
@@ -97,18 +128,15 @@ class _RatingFormPageState extends State<AddRatingFormPage> {
         'reviewerName': reviewerName,
         'ratedUserName': widget.name,
         'type': 'given',
+        'imageBase64': _imageBase64, // Store the base64 encoded image string
       };
 
-      // Save to Firestore
       final docRef = await FirebaseFirestore.instance
           .collection('ratings')
           .add(ratingData);
-
-      // Get the actual document with server timestamp
       final actualDoc = await docRef.get();
       final actualData = actualDoc.data() as Map<String, dynamic>;
 
-      // Return the rating data to the previous screen
       if (mounted) {
         Navigator.pop(context, {
           ...actualData,
@@ -152,6 +180,37 @@ class _RatingFormPageState extends State<AddRatingFormPage> {
           },
         );
       }),
+    );
+  }
+
+  Widget _buildImagePreview() {
+    if (_imageBase64 == null) return const SizedBox.shrink();
+
+    return Column(
+      children: [
+        const SizedBox(height: 10),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.memory(
+            base64Decode(_imageBase64!),
+            height: 200,
+            width: double.infinity,
+            fit: BoxFit.cover,
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextButton(
+          onPressed: () {
+            setState(() {
+              _imageBase64 = null;
+            });
+          },
+          child: const Text(
+            'Remove Image',
+            style: TextStyle(color: Colors.red),
+          ),
+        ),
+      ],
     );
   }
 
@@ -224,6 +283,26 @@ class _RatingFormPageState extends State<AddRatingFormPage> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  onPressed: _pickImage,
+                  icon: const Icon(Icons.add_photo_alternate),
+                  label: const Text(
+                    "Add Photo",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 20,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                _buildImagePreview(),
                 const SizedBox(height: 30),
                 const Align(
                   alignment: Alignment.centerLeft,

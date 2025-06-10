@@ -427,22 +427,50 @@ class _RatingListPageState extends State<RatingListPage>
                               initialRating:
                                   review['rating']?.toDouble() ?? 0.0,
                               initialReview: review['comment'] ?? '',
+                              initialImageBase64: review['imageBase64'],
+                              documentId: review['documentId'],
+                              userData: {
+                                'uid': review['ratedUserId'],
+                                'fullName': review['ratedUserName'],
+                                'role': review['ratedUserRole'],
+                              },
                             ),
                       ),
                     );
                     if (updated != null) {
+                      // Update Firestore
                       await FirebaseFirestore.instance
                           .collection('ratings')
                           .doc(review['documentId'])
                           .update({
                             'rating': updated['rating'],
-                            'comment': updated['review'],
+                            'comment': updated['comment'],
                             'updatedAt': FieldValue.serverTimestamp(),
+                            'imageBase64': updated['imageBase64'],
                           });
-                      _loadMyReviews();
+
+                      // Update local state
+                      setState(() {
+                        final index = myReviews.indexWhere(
+                          (r) => r['documentId'] == review['documentId'],
+                        );
+                        if (index != -1) {
+                          myReviews[index] = {
+                            ...myReviews[index],
+                            'rating': updated['rating'],
+                            'comment': updated['comment'],
+                            'imageBase64': updated['imageBase64'],
+                            'updatedAt': FieldValue.serverTimestamp(),
+                          };
+                        }
+                      });
+
+                      // Reload reviews to ensure data is in sync
+                      await _loadMyReviews();
+
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Review updated'),
+                          content: Text('Review updated successfully'),
                           backgroundColor: Colors.green,
                         ),
                       );

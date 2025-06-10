@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:convert';
 
 class RatingDetailPage extends StatefulWidget {
   final String initials;
@@ -196,6 +197,7 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
               data['createdAt'] as Timestamp? ??
               data['timestamp'] as Timestamp? ??
               Timestamp.now(),
+          'imageBase64': data['imageBase64'],
         };
 
         tempReviewsWithComments.add(ratingData);
@@ -485,6 +487,7 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
     final String comment = review['comment'] ?? '';
     final int rating = review['rating'] ?? 0;
     final String date = review['date'] ?? '';
+    final String? imageBase64 = review['imageBase64'];
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -539,6 +542,22 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
             ),
             const SizedBox(height: 8),
             Text(comment, style: const TextStyle(fontSize: 14)),
+            if (imageBase64 != null && imageBase64.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.memory(
+                  base64Decode(imageBase64),
+                  height: 200,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    print('Error loading image: $error');
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -621,6 +640,25 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
     );
   }
 
+  // Add this method to refresh data
+  Future<void> _refreshData() async {
+    if (widget.userData != null) {
+      setState(() {
+        isLoading = true;
+      });
+
+      String userId = widget.userData!['uid'];
+      String userName =
+          widget.userData!['fullName'] ??
+          widget.userData!['name'] ??
+          widget.name;
+
+      // Clear the cache and fetch fresh data
+      _ratingCache.remove('$userId-$userName');
+      await _fetchRatingData(userId, userName);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final Color primaryColor =
@@ -636,44 +674,50 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
         ),
         backgroundColor: primaryColor,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshData),
+        ],
       ),
-      body:
-          isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  _buildProfileCard(primaryColor),
-                  const SizedBox(height: 16),
-                  _buildSummaryCard(primaryColor),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '$totalReviews reviews found',
-                        style: const TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                      _buildSortDropdown(),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  if (reviewsWithComments.isEmpty)
-                    const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(32.0),
-                        child: Text(
-                          'No reviews yet',
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
+      body: RefreshIndicator(
+        onRefresh: _refreshData,
+        child:
+            isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    _buildProfileCard(primaryColor),
+                    const SizedBox(height: 16),
+                    _buildSummaryCard(primaryColor),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '$totalReviews reviews found',
+                          style: const TextStyle(fontWeight: FontWeight.w500),
                         ),
-                      ),
-                    )
-                  else
-                    ...reviewsWithComments.map(
-                      (review) => _buildReviewCard(review, primaryColor),
+                        _buildSortDropdown(),
+                      ],
                     ),
-                ],
-              ),
+                    const SizedBox(height: 8),
+                    if (reviewsWithComments.isEmpty)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(32.0),
+                          child: Text(
+                            'No reviews yet',
+                            style: TextStyle(fontSize: 16, color: Colors.grey),
+                          ),
+                        ),
+                      )
+                    else
+                      ...reviewsWithComments.map(
+                        (review) => _buildReviewCard(review, primaryColor),
+                      ),
+                  ],
+                ),
+      ),
     );
   }
 }
