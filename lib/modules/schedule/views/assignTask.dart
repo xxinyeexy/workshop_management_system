@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class AssignTaskPage extends StatefulWidget {
   final String foremanName;
@@ -82,7 +83,17 @@ class _AssignTaskPageState extends State<AssignTaskPage> {
                 Expanded(child: buildTimePicker("End Time", endTime.format(context), () => pickTime(false))),
               ],
             ),
-            buildTextField("Reward (RM)", rewardController, isCurrency: true),
+            TextFormField(
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+              ],
+              decoration: InputDecoration(
+                labelText: 'Reward',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                prefixText: 'RM ',
+              ),
+            ),
             const SizedBox(height: 24),
             Row(
               children: [

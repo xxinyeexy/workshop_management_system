@@ -7,7 +7,7 @@ import 'package:workshop_management_system/modules/schedule/widgets/foremanCard.
 import 'package:workshop_management_system/modules/schedule/widgets/taskCard.dart';
 import '../models/scheduleInfo.dart'; // <-- Use ScheduleInfo here
 
-const String userRole = 'foreman'; // or 'owner'
+const String userRole = 'owner'; // or 'owner'
 
 class Schedule extends StatefulWidget {
   const Schedule({super.key});
