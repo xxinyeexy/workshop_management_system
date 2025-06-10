@@ -63,7 +63,10 @@ class _RegisterScreenState extends State<RegisterScreen>
     final role = isWorkshopOwner ? "workshop_owner" : "foreman";
 
     // Validation
-    if (fullName.isEmpty || email.isEmpty || phone.isEmpty || password.isEmpty) {
+    if (fullName.isEmpty ||
+        email.isEmpty ||
+        phone.isEmpty ||
+        password.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please fill in all required fields")),
@@ -73,9 +76,9 @@ class _RegisterScreenState extends State<RegisterScreen>
 
     if (password != confirmPassword) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Passwords do not match")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Passwords do not match")));
       return;
     }
 
@@ -95,18 +98,19 @@ class _RegisterScreenState extends State<RegisterScreen>
       final uid = userCred.user!.uid;
 
       // Create user document
-      Map<String, dynamic> userData = {
-        'uid': uid, // Add uid field for easier querying
+      final Map<String, dynamic> userData = {
+        'uid': uid,
         'fullName': fullName,
         'email': email,
-        'phone': phone,
+        'phoneNumber': phone,
         'role': role,
         'createdAt': Timestamp.now(),
-        'isActive': true, // Add status field
+        'isActive': true,
       };
 
       if (isWorkshopOwner) {
-        userData['address'] = address;
+        userData['workshopName'] = fullName;
+        userData['workshopAddress'] = address;
       }
 
       await FirebaseFirestore.instance
@@ -119,26 +123,22 @@ class _RegisterScreenState extends State<RegisterScreen>
           .collection('rating_profiles')
           .doc(uid)
           .set({
-        'uid': uid,
-        'fullName': fullName,
-        'role': role,
-        'averageRating': 0.0,
-        'totalRatings': 0,
-        'starDistribution': {
-          '5': 0,
-          '4': 0,
-          '3': 0,
-          '2': 0,
-          '1': 0,
-        },
-        'createdAt': Timestamp.now(),
-        'lastUpdated': Timestamp.now(),
-      });
+            'uid': uid,
+            'fullName': fullName,
+            'role': role,
+            'averageRating': 0.0,
+            'totalRatings': 0,
+            'starDistribution': {'5': 0, '4': 0, '3': 0, '2': 0, '1': 0},
+            'createdAt': Timestamp.now(),
+            'lastUpdated': Timestamp.now(),
+          });
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Successfully registered as ${role.replaceAll('_', ' ')}!"),
+          content: Text(
+            "Successfully registered as ${role.replaceAll('_', ' ')}!",
+          ),
           backgroundColor: Colors.green,
         ),
       );
@@ -245,14 +245,18 @@ class _RegisterScreenState extends State<RegisterScreen>
                     ),
                     const SizedBox(height: 16),
                   ],
-                ),
+                )
+              else
+                Column(children: [const SizedBox(height: 16)]),
               SizedBox(
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
-                        isWorkshopOwner ? const Color(0xFF3D5AFE) : Colors.lightBlue,
+                        isWorkshopOwner
+                            ? const Color(0xFF3D5AFE)
+                            : Colors.lightBlue,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
