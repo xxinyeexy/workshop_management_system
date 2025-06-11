@@ -146,8 +146,8 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
+                      onPressed: () async {
+                        await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) => ReschedulePage(
@@ -160,6 +160,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                             ),
                           ),
                         );
+                        loadTask();
                       },
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
                       child: const Text("Rescheduling", style: TextStyle(color: Colors.white)),
