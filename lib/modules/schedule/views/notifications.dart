@@ -45,54 +45,63 @@ class NotificationsPage extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             itemCount: docs.length,
             itemBuilder: (context, index) {
-              final data = docs[index].data() as Map<String, dynamic>;
+              final doc = docs[index];
+              final data = doc.data() as Map<String, dynamic>;
+              final docRef = doc.reference;
+
               final timestamp = data['timestamp'] as Timestamp?;
               final formattedTime = timestamp != null
                   ? timeAgo(timestamp)
                   : 'Unknown time';
 
-              final docRef = docs[index].reference;
-              if (data['isRead'] == false) {
-                docRef.update({'isRead': true});
-              }
+              return GestureDetector(
+                onTap: () async {
+                  if (data['isRead'] == false) {
+                    await docRef.update({'isRead': true});
+                  }
 
-              return Container(
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.shade200,
-                      blurRadius: 6,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      data['title'] ?? 'No Title',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Marked "${data['title']}" as read')),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: data['isRead'] == false ? Colors.blue.shade50 : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.shade200,
+                        blurRadius: 6,
+                        offset: const Offset(0, 3),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(data['body'] ?? ''),
-                    const SizedBox(height: 6),
-                    Text(
-                      formattedTime,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        data['title'] ?? 'No Title',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    )
-                  ],
+                      const SizedBox(height: 4),
+                      Text(data['body'] ?? ''),
+                      const SizedBox(height: 6),
+                      Text(
+                        formattedTime,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      )
+                    ],
+                  ),
                 ),
               );
-            },
+            }
           );
         },
       ),

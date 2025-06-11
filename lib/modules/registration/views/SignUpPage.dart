@@ -109,10 +109,6 @@ class _RegisterScreenState extends State<RegisterScreen>
         userData['address'] = address;
       }
 
-      if (!isWorkshopOwner) {
-        userData['workshopEnroll'] = null;
-      }
-
       await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)

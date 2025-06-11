@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:workshop_management_system/modules/schedule/views/assignTask.dart';
+import 'package:workshop_management_system/modules/schedule/views/blankSchedule.dart';
 import 'package:workshop_management_system/modules/schedule/views/foreman.dart';
 import 'package:workshop_management_system/modules/schedule/views/notifications.dart';
 import 'package:workshop_management_system/modules/schedule/views/taskDetail.dart';
@@ -88,7 +89,7 @@ class Schedule extends StatefulWidget {
 class _ScheduleState extends State<Schedule> {
   late Future<String> userRoleFuture;
   String? role;
-  bool showNotification = true;
+  bool showNotification = false;
   TimeOfDay? startTime;
   TimeOfDay? endTime;
   String? workshopName;
@@ -106,7 +107,22 @@ class _ScheduleState extends State<Schedule> {
   void initState() {
     super.initState();
     userRoleFuture = getUserRole();
-    getWorkshopName();
+     getWorkshopName().then((name) {
+    if (widget.userRole.toLowerCase() == 'foreman' && (name == null || name.isEmpty)) {
+        // Redirect to blank setup page
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const BlankSchedulePage()),
+          );
+        });
+      } else {
+        // Set it to state if needed elsewhere
+        setState(() {
+          workshopName = name;
+        });
+      }
+    });
     fetchTasks();
     fetchWorkTime();
     checkUnreadNotifications();
@@ -126,30 +142,23 @@ class _ScheduleState extends State<Schedule> {
     });
   }
 
-  Future<void> getWorkshopName() async {
+  Future<String?> getWorkshopName() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+    if (uid == null) return null;
 
     final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-    if (!userDoc.exists) return;
+    if (!userDoc.exists) return null;
 
     final data = userDoc.data();
     final role = data?['role'];
 
-    String? name;
     if (role == 'workshop_owner') {
-      name = data?['fullName'];
+      return data?['fullName'];
     } else if (role == 'foreman') {
-      name = data?['workshopName'];
+      return data?['workshopName']; // this might be null
     }
-
-    if (mounted) {
-      setState(() {
-        workshopName = name;
-      });
-    }
+    return null;
   }
-
 
 
   Future<String> getUserRole() async {
@@ -199,7 +208,6 @@ class _ScheduleState extends State<Schedule> {
 
     setState(() {
       foremen = loadedForemen;
-      workshopName = ownerName;
     });
   }
 
@@ -342,11 +350,25 @@ class _ScheduleState extends State<Schedule> {
         otherPartyName = currentWorkshopName;
         otherPartyInitials = _getInitials(currentWorkshopName);
         otherPartyRole = 'workshop';
+
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        if (uid != null) {
+          await FirebaseFirestore.instance.collection('users').doc(uid).update({
+            'workshopName': FieldValue.delete(),
+          });
+        }
+
+        // ✅ Navigate to blank schedule screen after clearing workshop
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const BlankSchedulePage()),
+          );
+        }
+
       } else {
         // Workshop owner logged in
         currentWorkshopName = widget.userName;
-        foremanName =
-            'John Foreman'; // Replace with actual foreman name linked to contract
+        foremanName ='John Foreman'; // Replace with actual foreman name linked to contract
 
         otherPartyName = foremanName;
         otherPartyInitials = _getInitials(foremanName);
