@@ -1,4 +1,3 @@
-// 1. RESCHEDULE PAGE (Foreman side)
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -29,6 +28,7 @@ class ReschedulePage extends StatefulWidget {
 class _ReschedulePageState extends State<ReschedulePage> {
   late DateTime newStart;
   late DateTime newEnd;
+  bool isSubmitting = false;
 
   @override
   void initState() {
@@ -71,9 +71,7 @@ class _ReschedulePageState extends State<ReschedulePage> {
     });
   }
 
-  Future<void> _submitRequest() async {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
-
+  Future<void> _submitReschedule() async {
     if (newStart.isAfter(newEnd)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("End time must be after start time")),
@@ -81,24 +79,35 @@ class _ReschedulePageState extends State<ReschedulePage> {
       return;
     }
 
-    await FirebaseFirestore.instance.collection('rescheduleRequests').add({
-      'taskId': widget.taskId,
-      'foremanId': uid,
-      'newStartTime': Timestamp.fromDate(newStart),
-      'newEndTime': Timestamp.fromDate(newEnd),
-      'status': 'pending',
-      'createdAt': Timestamp.now(),
+    setState(() => isSubmitting = true);
+
+    // Fetch task doc to get foremanId
+    final taskDoc = await FirebaseFirestore.instance.collection('tasks').doc(widget.taskId).get();
+    final foremanId = taskDoc['foremanId'];
+
+    // Update task times
+    await FirebaseFirestore.instance.collection('tasks').doc(widget.taskId).update({
+      'taskStartTime': Timestamp.fromDate(newStart),
+      'taskEndTime': Timestamp.fromDate(newEnd),
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Reschedule request sent")),
-    );
+    // Send notification to foreman
+    await FirebaseFirestore.instance.collection('notifications').add({
+      'userId': foremanId,
+      'title': "Task Rescheduled",
+      'body': 'The task "${widget.taskTitle}" has been rescheduled by the owner.',
+      'timestamp': Timestamp.now(),
+      'isRead': false,
+    });
+
+    setState(() => isSubmitting = false);
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Task rescheduled")));
     Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = widget.userRole == 'owner' ? Colors.blue : Colors.green;
+    final primaryColor = widget.userRole == 'workshop_owner' ? Colors.blue : Colors.green;
 
     return Scaffold(
       appBar: AppBar(
@@ -113,21 +122,21 @@ class _ReschedulePageState extends State<ReschedulePage> {
             const Text("Start Time"),
             ListTile(
               title: Text(DateFormat('yyyy-MM-dd hh:mm a').format(newStart)),
-              trailing: Icon(Icons.edit),
+              trailing: const Icon(Icons.edit),
               onTap: () => _selectDateTime(isStart: true),
             ),
             const SizedBox(height: 16),
             const Text("End Time"),
             ListTile(
               title: Text(DateFormat('yyyy-MM-dd hh:mm a').format(newEnd)),
-              trailing: Icon(Icons.edit),
+              trailing: const Icon(Icons.edit),
               onTap: () => _selectDateTime(isStart: false),
             ),
             const Spacer(),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _submitRequest,
+                onPressed: isSubmitting ? null : _submitReschedule,
                 style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
                 child: const Text("Submit Reschedule"),
               ),

@@ -14,7 +14,13 @@ class NotificationsPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Notifications"),
+        title: const Text(
+                "Notifications",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
         backgroundColor: userRole == 'foreman' ? Colors.green : Colors.blue,
         centerTitle: true,
       ),

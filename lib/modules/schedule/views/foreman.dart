@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../views/assignTask.dart';
 import '../widgets/foremanCard.dart';
 
 class ForemanPage extends StatefulWidget {
@@ -39,7 +40,7 @@ class _ForemanPageState extends State<ForemanPage> {
     // 3. For each foreman, fetch worktime from worktimes collection
     List<Map<String, dynamic>> loadedForemen = [];
 
-    for (var doc in foremenQuery.docs) {
+    for (var doc in foremenQuery.docs) { // ✅ Limit to max 2 foremen
       final foremanId = doc.id;
       final foremanData = doc.data();
 
@@ -70,7 +71,13 @@ class _ForemanPageState extends State<ForemanPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Foreman"),
+        title: const Text(
+                "Foreman",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
         backgroundColor: Colors.blue,
       ),
       body: ListView.builder(
@@ -80,13 +87,26 @@ class _ForemanPageState extends State<ForemanPage> {
           final foreman = foremen[index];
           final startTime = foreman['startTime'] != null ? formatTime(foreman['startTime']) : '--';
           final endTime = foreman['endTime'] != null ? formatTime(foreman['endTime']) : '--';
+          final formattedTime = "$startTime – $endTime";
 
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: ForemanCard(
               name: foreman['name'],
-              time: "$startTime – $endTime",
-              onTap: () {}, // Define action if needed
+              time: formattedTime,
+              onTap: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AssignTaskPage(
+                      foremanId: foreman['foremanId'],
+                      foremanName: foreman['name'],
+                      workTime: formattedTime,
+                    ),
+                  ),
+                );
+                await fetchForemen(); // ✅ Refresh after return
+              },
             ),
           );
         },

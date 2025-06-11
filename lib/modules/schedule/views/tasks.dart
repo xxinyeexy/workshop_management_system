@@ -24,16 +24,32 @@ class _TasksPageState extends State<TasksPage> {
 
   Future<void> fetchTasks() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
-    final querySnapshot = await FirebaseFirestore.instance
-        .collection('tasks')
-        .where('foremanId', isEqualTo: uid)
-        .get();
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    final role =  userDoc['role'];
+    if(role == "foreman"){
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('tasks')
+          .where('foremanId', isEqualTo: uid)
+          .get();
 
-    setState(() {
-      tasks = querySnapshot.docs
-      .map((doc) => TaskModel.fromMap(doc.data(),doc.id))
-      .toList();
-    });
+      setState(() {
+        tasks = querySnapshot.docs
+        .map((doc) => TaskModel.fromMap(doc.data(),doc.id))
+        .toList();
+      });}
+    else{
+      final workshopName = userDoc['fullName'];
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('tasks')
+          .where('workshopName', isEqualTo: workshopName)
+          .get();
+
+      setState(() {
+        tasks = querySnapshot.docs
+        .map((doc) => TaskModel.fromMap(doc.data(),doc.id))
+        .toList();
+      });
+    }
   }
 
   @override
@@ -46,7 +62,6 @@ class _TasksPageState extends State<TasksPage> {
           'Tasks',
           style: TextStyle(
             color: Colors.white,
-            fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -62,17 +77,15 @@ class _TasksPageState extends State<TasksPage> {
                   padding: const EdgeInsets.only(bottom: 12),
                   child: TaskCard(
                     task: task,
-                    userRole: widget.userRole,
-                    onTap: () {
-                      Navigator.push(
+                    onTap: () async {
+                      await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => TaskDetailPage(
-                            taskId: task.id,
-                            userRole: widget.userRole,
-                          ),
+                          builder: (_) => TaskDetailPage(taskId: task.id, userRole: widget.userRole),
                         ),
                       );
+                      // ✅ Reload tasks after coming back
+                        fetchTasks(); // make sure this re-queries Firestore
                     },
                   ),
                 );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:workshop_management_system/modules/schedule/views/assignTask.dart';
 import 'package:workshop_management_system/modules/schedule/views/foreman.dart';
 import 'package:workshop_management_system/modules/schedule/views/notifications.dart';
 import 'package:workshop_management_system/modules/schedule/views/taskDetail.dart';
@@ -18,6 +19,7 @@ class Schedule extends StatefulWidget {
 
 class _ScheduleState extends State<Schedule> {
   late Future<String> userRoleFuture;
+  String? role;
   bool showNotification = true;
   TimeOfDay? startTime;
   TimeOfDay? endTime;
@@ -167,17 +169,32 @@ class _ScheduleState extends State<Schedule> {
 
   Future<void> fetchTasks() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
-    final querySnapshot = await FirebaseFirestore.instance
-        .collection('tasks')
-        .where('foremanId', isEqualTo: uid)
-        .get();
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    final role =  userDoc['role'];
+    if(role == "foreman"){
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('tasks')
+          .where('foremanId', isEqualTo: uid)
+          .get();
 
-    setState(() {
-      tasks = querySnapshot.docs
-      .map((doc) => TaskModel.fromMap(doc.data(),doc.id))
-      .toList();
-    });
+      setState(() {
+        tasks = querySnapshot.docs
+        .map((doc) => TaskModel.fromMap(doc.data(),doc.id))
+        .toList();
+      });}
+    else{
+      final workshopName = userDoc['fullName'];
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('tasks')
+          .where('workshopName', isEqualTo: workshopName)
+          .get();
 
+      setState(() {
+        tasks = querySnapshot.docs
+        .map((doc) => TaskModel.fromMap(doc.data(),doc.id))
+        .toList();
+      });
+    }
   }
 
   @override
@@ -198,7 +215,13 @@ class _ScheduleState extends State<Schedule> {
           final primaryColor = userRole == 'foreman' ? Colors.green : Colors.blue;
           return Scaffold(
             appBar: AppBar(
-              title: const Text('Schedule'),
+              title: const Text(
+                'Schedule',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               backgroundColor: primaryColor,
               leading: Builder(
                 builder:
@@ -227,13 +250,13 @@ class _ScheduleState extends State<Schedule> {
                 if (showNotification)
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFFDFFFE3),
+                    color:  primaryColor,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   padding: const EdgeInsets.all(12),
                   child: Row(
                     children: [
-                      Icon(Icons.notifications_active, color: primaryColor),
+                      Icon(Icons.notifications_active, color: Colors.white),
                       const SizedBox(width: 8),
                       const Expanded(
                         child: Text(
@@ -376,12 +399,12 @@ class _ScheduleState extends State<Schedule> {
               padding: const EdgeInsets.only(bottom: 12),
               child: TaskCard(
                 task: task,
-                userRole: "foreman",
                 onTap: () async {
+                  final userRole = await userRoleFuture;
                   await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => TaskDetailPage(taskId: task.id, userRole: "foreman"),
+                      builder: (_) => TaskDetailPage(taskId: task.id, userRole: userRole),
                     ),
                   );
                   // ✅ Reload tasks after coming back
@@ -426,7 +449,7 @@ class _ScheduleState extends State<Schedule> {
         ),
         const SizedBox(height: 12),
         Column(
-        children: foremen.map((foreman) {
+        children: foremen.take(2).map((foreman) {
           final start = TimeOfDay.fromDateTime(foreman['startTime']);
           final end = TimeOfDay.fromDateTime(foreman['endTime']);
           final formattedTime = "${start.format(context)} – ${end.format(context)}";
@@ -436,22 +459,28 @@ class _ScheduleState extends State<Schedule> {
             child: ForemanCard(
               name: foreman['name'],
               time: formattedTime,
-              onTap: () {
-                // Navigator.push(
-                //   context,
-                //   MaterialPageRoute(
-                //     builder: (_) => AssignTaskPage(
-                //       foremanName: foreman['name'],
-                //       workTime: formattedTime,
-                //     ),
-                //   ),
-                // );
+              onTap: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AssignTaskPage(
+                      foremanId: foreman['foremanId'], // ✅ Ensure correct key
+                      foremanName: foreman['name'],
+                      workTime: formattedTime,
+                    ),
+                  ),
+                );
+
+                // ✅ Refresh tasks after coming back
+                setState(() {
+                  fetchTasks();
+                });
               },
             ),
           );
         }).toList(),
       ),
- // Example static card
+        // Example static card
         const SizedBox(height: 24),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -461,38 +490,43 @@ class _ScheduleState extends State<Schedule> {
               onPressed: () async {
                 final userRole = await userRoleFuture;
                 Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => TasksPage(userRole: userRole)),
-                );
+                  context, 
+                  MaterialPageRoute(builder: (_) => TasksPage(userRole: userRole)));
               },
               child: const Text("See All", style: TextStyle(color: Colors.blue)),
-            ),
+            )
           ],
         ),
         const SizedBox(height: 12),
         (tasks.isEmpty)
-            ? const Padding(
-                padding: EdgeInsets.only(top: 8),
-                child: Text("No tasks assigned", style: TextStyle(color: Colors.grey)),
-              )
-            : Column(
-                children: topTwoTasks.map((task) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: TaskCard(
-                    task: task,
-                    userRole: "owner",
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => TaskDetailPage(taskId: task.id, userRole: "owner"),
-                        ),
-                      );
-                      setState(() => fetchTasks());
-                    },
-                  ),
-                )).toList(),
+        ? const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: Text(
+              "No tasks assigned",
+              style: TextStyle(color: Colors.grey),
+            ),
+          )
+        : Column(
+            children: topTwoTasks.map((task) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: TaskCard(
+                task: task,
+                onTap: () async {
+                  final userRole = await userRoleFuture;
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => TaskDetailPage(taskId: task.id, userRole: userRole),
+                    ),
+                  );
+                  // ✅ Reload tasks after coming back
+                  setState(() {
+                    fetchTasks(); // make sure this re-queries Firestore
+                  });
+                },
               ),
+            )).toList(),
+          ),
       ],
     );
   }

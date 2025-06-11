@@ -5,13 +5,11 @@ import 'package:intl/intl.dart';
 
 class TaskCard extends StatelessWidget {
   final TaskModel task;
-  final String userRole;
   final VoidCallback onTap;
 
   const TaskCard({
     super.key,
     required this.task,
-    required this.userRole,
     required this.onTap,
   });
 

@@ -6,6 +6,7 @@ void showCancelTaskDialog({
   required BuildContext context,
   required TaskModel task,
   required String userRole,
+  required VoidCallback onConfirm, // <-- Add this
 }) {
   showDialog(
     context: context,
@@ -26,8 +27,7 @@ void showCancelTaskDialog({
             const SizedBox(height: 16),
             TaskCard(
               task: task,
-              userRole: userRole,
-              onTap: () {}, // no navigation in dialog
+              onTap: () {}, // Prevent navigation
             ),
           ],
         ),
@@ -48,11 +48,8 @@ void showCancelTaskDialog({
               Expanded(
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Task Cancellation Request sent")),
-                    );
-                    // TODO: send cancellation request to backend
+                    Navigator.pop(context);     // Close dialog first
+                    onConfirm();                // <- Call the real cancel logic
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,

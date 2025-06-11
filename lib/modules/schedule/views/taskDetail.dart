@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:workshop_management_system/modules/schedule/controllers/showCancel.dart';
 import 'package:workshop_management_system/modules/schedule/views/reschedulingForm.dart';
 import 'package:workshop_management_system/modules/schedule/views/tasks.dart';
+import 'package:workshop_management_system/modules/schedule/widgets/simpleForemanCard.dart';
+import '../models/taskModel.dart';
 
 class TaskDetailPage extends StatefulWidget {
   final String taskId;
@@ -22,6 +25,7 @@ class TaskDetailPage extends StatefulWidget {
 
 class _TaskDetailPageState extends State<TaskDetailPage> {
   DocumentSnapshot? taskDoc;
+  TaskModel? taskModel;
 
   @override
   void initState() {
@@ -32,7 +36,10 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
   Future<void> loadTask() async {
     final doc = await FirebaseFirestore.instance.collection('tasks').doc(widget.taskId).get();
     if (doc.exists) {
-      setState(() => taskDoc = doc);
+      setState(() {
+        taskDoc = doc;
+        taskModel = TaskModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+      });
     }
   }
 
@@ -54,24 +61,36 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
 
   }
 
+    void confirmCancelTask() {
+      if (taskModel != null) {
+        showCancelTaskDialog(
+          context: context,
+          task: taskModel!,
+          userRole: widget.userRole,
+          onConfirm: () async {
+            // Update status to cancelled
+            await FirebaseFirestore.instance.collection('tasks').doc(widget.taskId).update({
+              'taskStatus': 'cancelled',
+            });
 
-  Future<void> cancelTask() async {
-    await FirebaseFirestore.instance.collection('tasks').doc(widget.taskId).update({
-      'taskStatus': 'cancelled',
-    });
+            // Notify foreman
+            final foremanId = taskDoc!['foremanId'];
+            await FirebaseFirestore.instance.collection('notifications').add({
+              'userId': foremanId,
+              'title': 'Task Cancelled',
+              'body': 'The task "${taskDoc!['taskTitle']}" has been cancelled by the owner.',
+              'timestamp': Timestamp.now(),
+              'isRead': false,
+            });
 
-    final foremanId = taskDoc!['foremanId'];
-    await FirebaseFirestore.instance.collection('notifications').add({
-      'userId': foremanId,
-      'title': 'Task Cancelled',
-      'body': 'The task "${taskDoc!['taskTitle']}" has been cancelled by the owner.',
-      'timestamp': Timestamp.now(),
-      'isRead': false,
-    });
+            // Show feedback & close
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Task cancelled")));
+            Navigator.pop(context); // close TaskDetailPage
+          },
+        );
+      }
+    }
 
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Task cancelled")));
-    Navigator.pop(context);
-  }
 
   String formatDateTime(DateTime dt) => DateFormat('EEEE, MMMM d, yyyy h:mm a').format(dt);
 
@@ -86,10 +105,10 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     final end = (data['taskEndTime'] as Timestamp).toDate();
     final now = DateTime.now();
 
-    final bool ownerCanAct = widget.userRole == 'owner' && now.isBefore(start);
-    final bool foremanCanComplete = widget.userRole == 'foreman' && now.isAfter(start) && data['taskStatus'] != 'completed';
+    final bool ownerCanAct = widget.userRole == 'workshop_owner' && data['taskStatus'] != 'completed' && data['taskStatus'] != 'cancelled';
+    final bool foremanCanComplete = widget.userRole == 'foreman' && now.isAfter(start) && data['taskStatus'] == 'scheduled';
 
-    final primaryColor = widget.userRole == 'owner' ? Colors.blue : Colors.green;
+    final primaryColor = widget.userRole == 'foreman' ? Colors.green : Colors.blue;
 
     return Scaffold(
       appBar: AppBar(
@@ -102,6 +121,11 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (widget.userRole == 'workshop_owner')
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: SimpleForemanCard(name: data['foremanName']),
+            ),
             _buildField("Task Assign", data['taskTitle']),
             _buildField("Description", data['taskDescription']),
             _buildField("Start Time", formatDateTime(start)),
@@ -115,7 +139,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                   Expanded(
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                      onPressed: cancelTask,
+                      onPressed: confirmCancelTask,
                       child: const Text("Cancel Task", style: TextStyle(color: Colors.white)),
                     ),
                   ),
