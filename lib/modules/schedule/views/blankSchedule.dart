@@ -44,12 +44,30 @@ class _BlankSchedulePageState extends State<BlankSchedulePage> {
 
     setState(() => isSubmitting = true);
 
-    // Update foreman's workshopName in users collection
+    // 1. Validate that this workshop name exists as a user with role = 'workshop_owner'
+    final workshopQuery = await FirebaseFirestore.instance
+        .collection('users')
+        .where('fullName', isEqualTo: workshopName)
+        .where('role', isEqualTo: 'workshop_owner')
+        .limit(1)
+        .get();
+
+    if (workshopQuery.docs.isEmpty) {
+      setState(() => isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Invalid workshop name. Please try again.")),
+      );
+      return;
+    }
+
+    final workshopOwnerId = workshopQuery.docs.first.id;
+
+    // 2. Update current foreman's document with selected workshop name
     await FirebaseFirestore.instance.collection('users').doc(uid).update({
       'workshopName': workshopName,
     });
 
-    // Save worktime
+    // 3. Save selected worktime
     final now = DateTime.now();
     final startDateTime = DateTime(now.year, now.month, now.day, startTime.hour, startTime.minute);
     final endDateTime = DateTime(now.year, now.month, now.day, endTime.hour, endTime.minute);
@@ -59,14 +77,22 @@ class _BlankSchedulePageState extends State<BlankSchedulePage> {
       'endTime': Timestamp.fromDate(endDateTime),
     });
 
+    // 4. Send notification to the owner
+    await FirebaseFirestore.instance.collection('notifications').add({
+      'userId': workshopOwnerId,
+      'title': 'New Foreman Joined',
+      'body': 'A foreman has applied to your workshop: $workshopName.',
+      'timestamp': Timestamp.now(),
+      'isRead': false,
+    });
+
     setState(() => isSubmitting = false);
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Workshop applied successfully!")),
     );
 
-    // Refresh or pop this page if needed
-    Navigator.pop(context);
+    Navigator.pop(context); // Or navigate to Schedule screen
   }
 
   String _formatTime(TimeOfDay time) {
