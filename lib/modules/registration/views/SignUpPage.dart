@@ -133,6 +133,24 @@ class _RegisterScreenState extends State<RegisterScreen>
             'lastUpdated': Timestamp.now(),
           });
 
+      if(role == "foreman"){
+        await FirebaseFirestore.instance
+        .collection('worktimes')
+        .doc(uid)
+        .set({
+          'startTime':'',
+          'endTime':'',
+        });
+      }
+
+      await FirebaseFirestore.instance
+        .collection('tasks')
+        .doc(uid)
+        .set({
+          'startTime':'',
+          'endTime':'',
+        });
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
