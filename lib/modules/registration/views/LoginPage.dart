@@ -73,9 +73,9 @@ class _LoginScreenState extends State<LoginScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => Schedule(
-            // userName: userName,
-            // userRole: userRole,
-            // userPosition: userPosition,
+            userName: userName,
+            userRole: userRole,
+            userPosition: userPosition,
           ),
         ),
       );

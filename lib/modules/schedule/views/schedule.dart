@@ -11,12 +11,79 @@ import 'package:workshop_management_system/modules/schedule/widgets/taskCard.dar
 import '../models/taskModel.dart';
 import '../../sidebar.dart';
 
+class RatingService {
+  static final RatingService _instance = RatingService._internal();
+  factory RatingService() => _instance;
+  RatingService._internal();
+
+  final List<Map<String, dynamic>> _pendingRatings = [];
+
+  void addPendingRating(Map<String, dynamic> ratingData) {
+    // Check if a similar rating already exists
+    bool exists = _pendingRatings.any(
+      (rating) =>
+          rating['contractId'] == ratingData['contractId'] &&
+          rating['forUserRole'] == ratingData['forUserRole'],
+    );
+
+    if (!exists) {
+      _pendingRatings.add(ratingData);
+    }
+  }
+
+  // Now filter by user role AND user identity (foremanName or workshopName)
+  List<Map<String, dynamic>> getPendingRatingsForUser(
+    String userRole,
+    String userName,
+    String workshopName,
+  ) {
+    return _pendingRatings.where((rating) {
+      if (rating['forUserRole'] != userRole) return false;
+
+      if (userRole == 'foreman') {
+        return rating['foremanName'] == userName;
+      } else if (userRole == 'workshop') {
+        return rating['workshopName'] == workshopName;
+      }
+      return false;
+    }).toList();
+  }
+
+  void removePendingRating(Map<String, dynamic> ratingData) {
+    _pendingRatings.removeWhere(
+      (rating) =>
+          rating['contractId'] == ratingData['contractId'] &&
+          rating['forUserRole'] == ratingData['forUserRole'],
+    );
+  }
+
+  // Debug method to print all pending ratings
+  void debugPrintRatings() {
+    print('All pending ratings:');
+    for (var rating in _pendingRatings) {
+      print(
+        'Rating for ${rating['forUserRole']}: ${rating['name']} (Workshop: ${rating['workshopName']}, Foreman: ${rating['foremanName']})',
+      );
+    }
+  }
+}
+
 class Schedule extends StatefulWidget {
-  const Schedule({super.key});
+  final String userRole;
+  final String userName;
+  final String userPosition;
+
+  const Schedule({
+    super.key,
+    required this.userRole,
+    required this.userName,
+    required this.userPosition,
+  });
 
   @override
   State<Schedule> createState() => _ScheduleState();
 }
+
 
 class _ScheduleState extends State<Schedule> {
   late Future<String> userRoleFuture;
@@ -27,9 +94,8 @@ class _ScheduleState extends State<Schedule> {
   String? workshopName;
   List<TaskModel> tasks = [];
   List<Map<String, dynamic>> foremen = [];
+  bool isContractTerminated = false;
   
-  
-
   String _formatTimeOfDay(TimeOfDay time) {
   final now = DateTime.now();
   final dt = DateTime(now.year, now.month, now.day, time.hour, time.minute);
@@ -40,6 +106,7 @@ class _ScheduleState extends State<Schedule> {
   void initState() {
     super.initState();
     userRoleFuture = getUserRole();
+    getWorkshopName();
     fetchTasks();
     fetchWorkTime();
     checkUnreadNotifications();
@@ -58,6 +125,31 @@ class _ScheduleState extends State<Schedule> {
       showNotification = snapshot.docs.isNotEmpty; // ✅ TRUE only when unread exists
     });
   }
+
+  Future<void> getWorkshopName() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    if (!userDoc.exists) return;
+
+    final data = userDoc.data();
+    final role = data?['role'];
+
+    String? name;
+    if (role == 'workshop_owner') {
+      name = data?['fullName'];
+    } else if (role == 'foreman') {
+      name = data?['workshopName'];
+    }
+
+    if (mounted) {
+      setState(() {
+        workshopName = name;
+      });
+    }
+  }
+
 
 
   Future<String> getUserRole() async {
@@ -198,6 +290,151 @@ class _ScheduleState extends State<Schedule> {
     }
   }
 
+   void _terminateContract() async {
+    // Show confirmation dialog
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Terminate Contract'),
+          content: const Text(
+            'Are you sure you want to terminate this contract? This will trigger a mutual rating process.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text(
+                'Terminate',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      setState(() {
+        isContractTerminated = true;
+      });
+
+      final String contractId =
+          'contract_${DateTime.now().millisecondsSinceEpoch}';
+      final DateTime now = DateTime.now();
+      final String formattedDate = '${now.day}/${now.month}/${now.year}';
+
+      String otherPartyName;
+      String otherPartyInitials;
+      String otherPartyRole;
+      String foremanName;
+      String currentWorkshopName;
+
+      if (widget.userRole.toLowerCase() == 'foreman') {
+        // Foreman is logged in, workshop is associated workshop
+        currentWorkshopName = workshopName ?? 'Unknown Workshop';
+        foremanName = widget.userName;
+
+        otherPartyName = currentWorkshopName;
+        otherPartyInitials = _getInitials(currentWorkshopName);
+        otherPartyRole = 'workshop';
+      } else {
+        // Workshop owner logged in
+        currentWorkshopName = widget.userName;
+        foremanName =
+            'John Foreman'; // Replace with actual foreman name linked to contract
+
+        otherPartyName = foremanName;
+        otherPartyInitials = _getInitials(foremanName);
+        otherPartyRole = 'foreman';
+      }
+
+      // Create rating data for workshop owner
+      final workshopRatingData = {
+        'contractId': contractId,
+        'forUserRole': 'workshop',
+        'name':
+            widget.userRole.toLowerCase() == 'foreman'
+                ? widget.userName
+                : otherPartyName,
+        'initials':
+            widget.userRole.toLowerCase() == 'foreman'
+                ? _getInitials(widget.userName)
+                : otherPartyInitials,
+        'date': formattedDate,
+        'message':
+            'Contract terminated. Please rate your experience working together.',
+        'targetRole': 'foreman',
+        'workshopName': currentWorkshopName,
+        'foremanName': foremanName,
+      };
+
+      // Create rating data for foreman
+      final foremanRatingData = {
+        'contractId': contractId,
+        'forUserRole': 'foreman',
+        'name':
+            widget.userRole.toLowerCase() == 'workshop'
+                ? widget.userName
+                : otherPartyName,
+        'initials':
+            widget.userRole.toLowerCase() == 'workshop'
+                ? _getInitials(widget.userName)
+                : otherPartyInitials,
+        'date': formattedDate,
+        'message':
+            'Contract terminated. Please rate your experience working together.',
+        'targetRole': 'workshop',
+        'workshopName': currentWorkshopName,
+        'foremanName': foremanName,
+      };
+
+      // Add ratings for both parties
+      RatingService().addPendingRating(workshopRatingData);
+      RatingService().addPendingRating(foremanRatingData);
+
+      // Force rebuild of the sidebar to update notification badge
+      if (mounted) {
+        setState(() {
+          // Rebuild the scaffold to trigger sidebar rebuild
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder:
+                  (context) => Schedule(
+                    userName: widget.userName,
+                    userRole: widget.userRole,
+                    userPosition: widget.userPosition,
+                  ),
+            ),
+          );
+        });
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Contract terminated successfully. Rating requests have been created.',
+          ),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  String _getInitials(String name) {
+    return name
+        .split(' ')
+        .map((n) => n.isNotEmpty ? n[0] : '')
+        .join()
+        .toUpperCase();
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<String>(
@@ -244,6 +481,19 @@ class _ScheduleState extends State<Schedule> {
                   child: const Text('Notification', style: TextStyle(color: Colors.black, fontSize: 16)),
                 ),
               ],
+            ),
+            drawer: SidebarMenu(
+              userRole:
+                  widget.userRole.toLowerCase() == 'foreman'
+                      ? UserRole.Foreman
+                      : UserRole.WorkshopOwner,
+              userName: widget.userName,
+              userPosition: widget.userPosition,
+              selectedTitle: 'Schedule',
+              originalUserRole: widget.userRole,
+              onSelectedTitleChanged: (title) {
+                // Optional: sync state or navigation logic here
+              },
             ),
             body: ListView(
               padding: const EdgeInsets.all(16),
@@ -300,7 +550,7 @@ class _ScheduleState extends State<Schedule> {
           children: [
             Expanded(
               child: TextFormField(
-                initialValue: "Ali Workshop",
+                initialValue: workshopName,
                 readOnly: true,
                 decoration: InputDecoration(
                   filled: true,
@@ -312,19 +562,45 @@ class _ScheduleState extends State<Schedule> {
             ),
             const SizedBox(width: 8),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      isContractTerminated ? Colors.grey : Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: isContractTerminated ? null : _terminateContract,
+                child: Text(
+                  isContractTerminated ? "Terminated" : "Terminate Contract",
+                ),
               ),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Job Terminated")),
-                );
-              },
-              child: const Text("Terminate Job"),
-            ),
           ],
         ),
+
+        if (isContractTerminated)
+        Container(
+          margin: const EdgeInsets.only(top: 12),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.red[50],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.red[200]!),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.warning, color: Colors.red[700], size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Contract terminated. Please navigate to Ratings to complete the mutual rating process.',
+                  style: TextStyle(
+                    color: Colors.red[700],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
         const SizedBox(height: 20),
         const Text("Worktime", style: TextStyle(fontWeight: FontWeight.w500)),
         const SizedBox(height: 8),
