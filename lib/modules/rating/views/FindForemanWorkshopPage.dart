@@ -99,95 +99,76 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
   }
 
   void _setupRatingsListener() {
+    _ratingsSubscription?.cancel(); // Cancel existing subscription if any
+
     _ratingsSubscription = FirebaseFirestore.instance
         .collection('ratings')
         .snapshots()
         .listen((snapshot) async {
-          // Make async to allow await
-          if (!mounted) return; // Ensure widget is still mounted
+          if (!mounted) return;
 
-          for (var docChange in snapshot.docChanges) {
-            final data = docChange.doc.data() as Map<String, dynamic>?;
-            if (data == null) continue;
+          print('DEBUG: Ratings collection updated, refreshing data...');
 
+          // Clear cache when ratings change
+          _ratingCache.clear();
+
+          // Fetch all ratings for all users in one go
+          final QuerySnapshot allRatingsSnapshot =
+              await FirebaseFirestore.instance.collection('ratings').get();
+
+          // Build a map of all ratings for efficient lookup
+          final Map<String, List<Map<String, dynamic>>> allRatings = {};
+          for (var doc in allRatingsSnapshot.docs) {
+            final data = doc.data() as Map<String, dynamic>;
             final ratedUserId = data['ratedUserId'] as String?;
             final ratedUserName = data['ratedUserName'] as String?;
 
-            if (ratedUserId == null && ratedUserName == null) continue;
+            if (ratedUserId != null) {
+              allRatings[ratedUserId] ??= [];
+              allRatings[ratedUserId]!.add(data);
+            }
+            if (ratedUserName != null) {
+              allRatings[ratedUserName] ??= [];
+              allRatings[ratedUserName]!.add(data);
+            }
+          }
 
-            // Find the user in current lists (foremen or workshops)
-            Map<String, dynamic>? userToUpdate;
-            bool isForemanUser = false;
-            int userIndex = -1;
+          // Update ratings for all users
+          List<Map<String, dynamic>> updatedForemen = [];
+          List<Map<String, dynamic>> updatedWorkshops = [];
 
-            userIndex = foremen.indexWhere(
-              (user) =>
-                  user['uid'] == ratedUserId ||
-                  user['fullName'] == ratedUserName,
+          for (var userData in foremen) {
+            final updatedRatingData = _calculateRatingData(
+              userData['uid'],
+              userData['fullName'],
+              allRatings,
             );
-            if (userIndex != -1) {
-              userToUpdate = foremen[userIndex];
-              isForemanUser = true;
-            } else {
-              userIndex = workshops.indexWhere(
-                (user) =>
-                    user['uid'] == ratedUserId ||
-                    user['fullName'] == ratedUserName,
-              );
-              if (userIndex != -1) {
-                userToUpdate = workshops[userIndex];
-              }
-            }
+            updatedForemen.add({
+              ...userData,
+              'averageRating': updatedRatingData['averageRating'],
+              'totalRatings': updatedRatingData['totalRatings'],
+            });
+          }
 
-            if (userToUpdate != null) {
-              // Fetch all ratings for this specific user
-              // This is more efficient than re-fetching all ratings in the whole collection
-              final QuerySnapshot userRatingsSnapshot =
-                  await FirebaseFirestore.instance
-                      .collection('ratings')
-                      .where('ratedUserId', isEqualTo: userToUpdate['uid'])
-                      .get();
+          for (var userData in workshops) {
+            final updatedRatingData = _calculateRatingData(
+              userData['uid'],
+              userData['fullName'],
+              allRatings,
+            );
+            updatedWorkshops.add({
+              ...userData,
+              'averageRating': updatedRatingData['averageRating'],
+              'totalRatings': updatedRatingData['totalRatings'],
+            });
+          }
 
-              // Build a temporary userRatings map for just this user
-              final Map<String, List<Map<String, dynamic>>>
-              singleUserRatingsMap = {};
-              for (QueryDocumentSnapshot ratingDoc
-                  in userRatingsSnapshot.docs) {
-                final ratingData = ratingDoc.data() as Map<String, dynamic>;
-                final id = ratingData['ratedUserId'] as String?;
-                final name = ratingData['ratedUserName'] as String?;
-                if (id != null) {
-                  singleUserRatingsMap[id] ??= [];
-                  singleUserRatingsMap[id]!.add(ratingData);
-                }
-                if (name != null) {
-                  singleUserRatingsMap[name] ??= [];
-                  singleUserRatingsMap[name]!.add(ratingData);
-                }
-              }
-
-              // Recalculate rating for the specific user using their subset of ratings
-              final Map<String, dynamic> updatedRatingData =
-                  _calculateRatingData(
-                    userToUpdate['uid'],
-                    userToUpdate['fullName'],
-                    singleUserRatingsMap, // Pass only this user's ratings map
-                  );
-
-              setState(() {
-                if (isForemanUser) {
-                  foremen[userIndex]['averageRating'] =
-                      updatedRatingData['averageRating'];
-                  foremen[userIndex]['totalRatings'] =
-                      updatedRatingData['totalRatings'];
-                } else {
-                  workshops[userIndex]['averageRating'] =
-                      updatedRatingData['averageRating'];
-                  workshops[userIndex]['totalRatings'] =
-                      updatedRatingData['totalRatings'];
-                }
-              });
-            }
+          if (mounted) {
+            setState(() {
+              foremen = updatedForemen;
+              workshops = updatedWorkshops;
+            });
+            print('DEBUG: UI updated with new rating data');
           }
         });
   }
@@ -199,6 +180,8 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
         isLoading = true;
       });
 
+      print('DEBUG: Starting to fetch users and ratings...');
+
       // Fetch users and all ratings in parallel
       final futures = await Future.wait([
         FirebaseFirestore.instance.collection('users').get(),
@@ -207,6 +190,10 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
 
       final usersSnapshot = futures[0] as QuerySnapshot;
       final ratingsSnapshot = futures[1] as QuerySnapshot;
+
+      print(
+        'DEBUG: Fetched ${usersSnapshot.docs.length} users and ${ratingsSnapshot.docs.length} ratings',
+      );
 
       // Build rating lookup map for O(1) access
       final Map<String, List<Map<String, dynamic>>> userRatings = {};
@@ -239,31 +226,42 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
           userData['fullName'] ?? userData['name'] ?? '',
           userRatings,
         );
-        userData['averageRating'] = ratingData['averageRating'];
-        userData['totalRatings'] = ratingData['totalRatings'];
+
+        final updatedUserData = {
+          ...userData,
+          'averageRating': ratingData['averageRating'],
+          'totalRatings': ratingData['totalRatings'],
+        };
 
         print(
-          'DEBUG: User: ${userData['fullName'] ?? userData['name']}, Calculated Average Rating: ${userData['averageRating']}, Total Ratings: ${userData['totalRatings']}',
+          'DEBUG: User: ${userData['fullName'] ?? userData['name']}, Calculated Average Rating: ${ratingData['averageRating']}, Total Ratings: ${ratingData['totalRatings']}',
         );
 
         // Separate users by role
         if (userData['role'] == 'foreman') {
-          tempForemen.add(userData);
+          tempForemen.add(updatedUserData);
         } else if (userData['role'] == 'workshop_owner') {
-          tempWorkshops.add(userData);
+          tempWorkshops.add(updatedUserData);
         }
       }
 
-      setState(() {
-        foremen = tempForemen;
-        workshops = tempWorkshops;
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          foremen = tempForemen;
+          workshops = tempWorkshops;
+          isLoading = false;
+        });
+        print(
+          'DEBUG: Successfully updated state with ${foremen.length} foremen and ${workshops.length} workshops',
+        );
+      }
     } catch (e) {
       print('Error fetching users: $e');
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -341,6 +339,7 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
                 .toString()
                 .trim();
 
+        // Only count ratings that are valid (1-5) and have comments
         if (currentRatingDouble >= 1.0 &&
             currentRatingDouble <= 5.0 &&
             comment.isNotEmpty) {
@@ -400,6 +399,9 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
         ),
         child: ListTile(
           onTap: () async {
+            // Clear cache before navigating to ensure fresh data
+            _ratingCache.clear();
+
             await Navigator.push(
               context,
               MaterialPageRoute(
@@ -412,9 +414,11 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
                     ),
               ),
             );
-            // Clear cache and refresh data after returning from RatingDetailPage
-            _ratingCache.clear();
-            await _fetchUsers();
+
+            // Refresh data after returning from RatingDetailPage
+            if (mounted) {
+              await _fetchUsers();
+            }
           },
           leading: CircleAvatar(
             backgroundColor: Colors.grey[300],
