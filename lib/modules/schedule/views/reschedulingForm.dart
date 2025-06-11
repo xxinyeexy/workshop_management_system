@@ -1,15 +1,25 @@
+// 1. RESCHEDULE PAGE (Foreman side)
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 
 class ReschedulePage extends StatefulWidget {
-  final String title;
-  final String date; // Format: '2025-03-30'
-  final String time; // Format: '8:00 AM - 10:00 AM'
+  final String taskId;
+  final String userRole;
+  final DateTime originalStartTime;
+  final DateTime originalEndTime;
+  final String ownerId;
+  final String taskTitle;
 
   const ReschedulePage({
     super.key,
-    required this.title,
-    required this.date,
-    required this.time,
+    required this.taskId,
+    required this.userRole,
+    required this.originalStartTime,
+    required this.originalEndTime,
+    required this.ownerId,
+    required this.taskTitle,
   });
 
   @override
@@ -17,186 +27,110 @@ class ReschedulePage extends StatefulWidget {
 }
 
 class _ReschedulePageState extends State<ReschedulePage> {
-  late DateTime selectedDate;
-  late TimeOfDay startTime;
-  late TimeOfDay endTime;
+  late DateTime newStart;
+  late DateTime newEnd;
 
   @override
   void initState() {
     super.initState();
-
-    selectedDate = _parseDate(widget.date);
-    final times = widget.time.split(" - ");
-    startTime = _parseTime(times[0]);
-    endTime = _parseTime(times[1]);
+    newStart = widget.originalStartTime;
+    newEnd = widget.originalEndTime;
   }
 
-  DateTime _parseDate(String date) {
-    final parts = date.split("-");
-    return DateTime(
-      int.parse(parts[0]),
-      int.parse(parts[1]),
-      int.parse(parts[2]),
-    );
-  }
-
-  TimeOfDay _parseTime(String timeStr) {
-    final parts = timeStr.trim().split(" ");
-    final timeParts = parts[0].split(":");
-    int hour = int.parse(timeParts[0]);
-    final minute = int.parse(timeParts[1]);
-    final isPM = parts[1].toLowerCase() == 'pm';
-    if (isPM && hour != 12) hour += 12;
-    if (!isPM && hour == 12) hour = 0;
-    return TimeOfDay(hour: hour, minute: minute);
-  }
-
-  Future<void> pickDate() async {
-    final picked = await showDatePicker(
+  Future<void> _selectDateTime({required bool isStart}) async {
+    final pickedDate = await showDatePicker(
       context: context,
-      initialDate: selectedDate,
+      initialDate: isStart ? newStart : newEnd,
       firstDate: DateTime.now(),
       lastDate: DateTime(2100),
     );
-    if (picked != null) {
-      setState(() => selectedDate = picked);
-    }
-  }
 
-  Future<void> pickTime(bool isStart) async {
-    final picked = await showTimePicker(
+    if (pickedDate == null) return;
+
+    final pickedTime = await showTimePicker(
       context: context,
-      initialTime: isStart ? startTime : endTime,
+      initialTime: TimeOfDay.fromDateTime(isStart ? newStart : newEnd),
     );
-    if (picked != null) {
-      setState(() {
-        if (isStart) {
-          startTime = picked;
-        } else {
-          endTime = picked;
-        }
-      });
+
+    if (pickedTime == null) return;
+
+    final fullDateTime = DateTime(
+      pickedDate.year,
+      pickedDate.month,
+      pickedDate.day,
+      pickedTime.hour,
+      pickedTime.minute,
+    );
+
+    setState(() {
+      if (isStart) {
+        newStart = fullDateTime;
+      } else {
+        newEnd = fullDateTime;
+      }
+    });
+  }
+
+  Future<void> _submitRequest() async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
+    if (newStart.isAfter(newEnd)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("End time must be after start time")),
+      );
+      return;
     }
-  }
 
-  String _formatDate(DateTime date) {
-    return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-  }
+    await FirebaseFirestore.instance.collection('rescheduleRequests').add({
+      'taskId': widget.taskId,
+      'foremanId': uid,
+      'newStartTime': Timestamp.fromDate(newStart),
+      'newEndTime': Timestamp.fromDate(newEnd),
+      'status': 'pending',
+      'createdAt': Timestamp.now(),
+    });
 
-  void showConfirmDialog() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text("Confirm Rescheduling"),
-        content: Text(
-          "You are going to reschedule the task to:\n\n"
-          "${_formatDate(selectedDate)}\n"
-          "${startTime.format(context)} - ${endTime.format(context)}\n\n"
-          "A notification will be sent to your workshop owner.",
-        ),
-        actions: [
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("No"),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Rescheduling sent")),
-                    );
-                  },
-                  child: const Text("Yes"),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Reschedule request sent")),
     );
-  }
-
-  Widget buildField(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 6),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(value),
-          ),
-        ],
-      ),
-    );
+    Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
+    final primaryColor = widget.userRole == 'owner' ? Colors.blue : Colors.green;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Rescheduling"),
-        centerTitle: true,
-        backgroundColor: Colors.green,
+        title: const Text("Reschedule Task"),
+        backgroundColor: primaryColor,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            buildField("Task", widget.title),
-            GestureDetector(
-              onTap: pickDate,
-              child: buildField("Date", _formatDate(selectedDate)),
+            const Text("Start Time"),
+            ListTile(
+              title: Text(DateFormat('yyyy-MM-dd hh:mm a').format(newStart)),
+              trailing: Icon(Icons.edit),
+              onTap: () => _selectDateTime(isStart: true),
             ),
-            Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => pickTime(true),
-                    child: buildField("Start Time", startTime.format(context)),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => pickTime(false),
-                    child: buildField("End Time", endTime.format(context)),
-                  ),
-                ),
-              ],
+            const SizedBox(height: 16),
+            const Text("End Time"),
+            ListTile(
+              title: Text(DateFormat('yyyy-MM-dd hh:mm a').format(newEnd)),
+              trailing: Icon(Icons.edit),
+              onTap: () => _selectDateTime(isStart: false),
             ),
             const Spacer(),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text("Cancel", style: TextStyle(color: Colors.black)),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: showConfirmDialog,
-                    child: const Text("Reschedule"),
-                  ),
-                ),
-              ],
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _submitRequest,
+                style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
+                child: const Text("Submit Reschedule"),
+              ),
             )
           ],
         ),

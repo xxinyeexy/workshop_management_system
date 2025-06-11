@@ -109,6 +109,10 @@ class _RegisterScreenState extends State<RegisterScreen>
         userData['address'] = address;
       }
 
+      if (!isWorkshopOwner) {
+        userData['workshopEnroll'] = null;
+      }
+
       await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
@@ -134,6 +138,24 @@ class _RegisterScreenState extends State<RegisterScreen>
         'createdAt': Timestamp.now(),
         'lastUpdated': Timestamp.now(),
       });
+
+      if(role == "foreman"){
+        await FirebaseFirestore.instance
+        .collection('worktimes')
+        .doc(uid)
+        .set({
+          'startTime':'',
+          'endTime':'',
+        });
+      }
+
+      await FirebaseFirestore.instance
+        .collection('tasks')
+        .doc(uid)
+        .set({
+          'startTime':'',
+          'endTime':'',
+        });
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

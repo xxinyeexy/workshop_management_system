@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:workshop_management_system/modules/schedule/views/Schedule.dart';
+import 'package:workshop_management_system/modules/schedule/views/schedule.dart';
 import 'package:workshop_management_system/modules/registration/views/SignUpPage.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -73,9 +73,9 @@ class _LoginScreenState extends State<LoginScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => Schedule(
-            userName: userName,
-            userRole: userRole,
-            userPosition: userPosition,
+            // userName: userName,
+            // userRole: userRole,
+            // userPosition: userPosition,
           ),
         ),
       );

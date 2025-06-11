@@ -1,16 +1,18 @@
+// 1. TASK DETAIL PAGE (Updated UI and Logic)
 import 'package:flutter/material.dart';
-import 'package:workshop_management_system/modules/schedule/models/scheduleInfo.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 import 'package:workshop_management_system/modules/schedule/views/reschedulingForm.dart';
-import '../widgets/taskForm.dart';
-import '../controllers/showCancel.dart';
+import 'package:workshop_management_system/modules/schedule/views/tasks.dart';
 
 class TaskDetailPage extends StatefulWidget {
-  final String scheduleId;
+  final String taskId;
   final String userRole;
 
   const TaskDetailPage({
     super.key,
-    required this.scheduleId,
+    required this.taskId,
     required this.userRole,
   });
 
@@ -19,7 +21,7 @@ class TaskDetailPage extends StatefulWidget {
 }
 
 class _TaskDetailPageState extends State<TaskDetailPage> {
-  ScheduleInfo? task;
+  DocumentSnapshot? taskDoc;
 
   @override
   void initState() {
@@ -27,36 +29,72 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     loadTask();
   }
 
-  void loadTask() {
-    final fetched = mockScheduleList.firstWhere((t) => t.scheduleId == widget.scheduleId);
-    setState(() => task = fetched);
+  Future<void> loadTask() async {
+    final doc = await FirebaseFirestore.instance.collection('tasks').doc(widget.taskId).get();
+    if (doc.exists) {
+      setState(() => taskDoc = doc);
+    }
   }
+
+  Future<void> completeTask() async {
+    await FirebaseFirestore.instance.collection('tasks').doc(widget.taskId).update({
+      'taskStatus': 'completed',
+    });
+
+    final ownerId = taskDoc!['ownerId'];
+    await FirebaseFirestore.instance.collection('notifications').add({
+      'userId': ownerId,
+      'title': 'Task Completed',
+      'body': 'Foreman marked "${taskDoc!['taskTitle']}" as completed.',
+      'timestamp': Timestamp.now(),
+      'isRead': false,
+    });
+
+    Navigator.pop(context);
+
+  }
+
+
+  Future<void> cancelTask() async {
+    await FirebaseFirestore.instance.collection('tasks').doc(widget.taskId).update({
+      'taskStatus': 'cancelled',
+    });
+
+    final foremanId = taskDoc!['foremanId'];
+    await FirebaseFirestore.instance.collection('notifications').add({
+      'userId': foremanId,
+      'title': 'Task Cancelled',
+      'body': 'The task "${taskDoc!['taskTitle']}" has been cancelled by the owner.',
+      'timestamp': Timestamp.now(),
+      'isRead': false,
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Task cancelled")));
+    Navigator.pop(context);
+  }
+
+  String formatDateTime(DateTime dt) => DateFormat('EEEE, MMMM d, yyyy h:mm a').format(dt);
 
   @override
   Widget build(BuildContext context) {
-    if (task == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+    if (taskDoc == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final DateTime taskStartTime = DateTime(
-      task!.taskDate.year,
-      task!.taskDate.month,
-      task!.taskDate.day,
-      task!.taskStartTime.hour,
-      task!.taskStartTime.minute,
-    );
-    final DateTime now = DateTime.now();
+    final data = taskDoc!.data() as Map<String, dynamic>;
+    final start = (data['taskStartTime'] as Timestamp).toDate();
+    final end = (data['taskEndTime'] as Timestamp).toDate();
+    final now = DateTime.now();
 
-    final bool ownerCanAct = widget.userRole == 'owner' && now.isBefore(taskStartTime);
-    final bool foremanCanAct = widget.userRole == 'foreman' && now.isAfter(taskStartTime);
-    final bool canAct = ownerCanAct || foremanCanAct;
+    final bool ownerCanAct = widget.userRole == 'owner' && now.isBefore(start);
+    final bool foremanCanComplete = widget.userRole == 'foreman' && now.isAfter(start) && data['taskStatus'] != 'completed';
+
+    final primaryColor = widget.userRole == 'owner' ? Colors.blue : Colors.green;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text("Task"),
-        backgroundColor: widget.userRole == 'owner' ? Colors.blue : Colors.green,
+        backgroundColor: primaryColor,
         centerTitle: true,
       ),
       body: Padding(
@@ -64,82 +102,81 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (widget.userRole == 'owner')
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: CircleAvatar(
-                  child: Text(task!.foremanName.split(" ").map((e) => e[0]).join()),
-                ),
-                title: Text(task!.foremanName, style: const TextStyle(fontWeight: FontWeight.w600)),
-              ),
-            TaskField(label: "Task Assign", value: task!.taskTitle),
-            TaskField(label: "Description", value: task!.taskDescription),
-            Row(
-              children: [
-                Expanded(child: TaskField(label: "Date", value: "${task!.taskDate.toLocal()}".split(' ')[0])),
-                const SizedBox(width: 8),
-                Expanded(child: TaskField(label: "Reward", value: task!.taskReward)),
-              ],
-            ),
-            Row(
-              children: [
-                Expanded(child: TaskField(label: "Start Time", value: task!.taskStartTime.format(context))),
-                const SizedBox(width: 8),
-                Expanded(child: TaskField(label: "End Time", value: task!.taskEndTime.format(context))),
-              ],
-            ),
-            TaskField(label: "Status", value: task!.taskStatus),
+            _buildField("Task Assign", data['taskTitle']),
+            _buildField("Description", data['taskDescription']),
+            _buildField("Start Time", formatDateTime(start)),
+            _buildField("End Time", formatDateTime(end)),
+            _buildField("Reward", "RM ${data['taskReward']}"),
+            _buildField("Status", data['taskStatus']),
             const Spacer(),
-            if (canAct)
+            if (ownerCanAct)
               Row(
                 children: [
                   Expanded(
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                      onPressed: () {
-                        showCancelTaskDialog(
-                          context: context,
-                          taskTitle: task!.taskTitle,
-                          date: "${task!.taskDate.toLocal()}".split(' ')[0],
-                          time: "${task!.taskStartTime.format(context)} - ${task!.taskEndTime.format(context)}",
-                        );
-                      },
+                      onPressed: cancelTask,
                       child: const Text("Cancel Task", style: TextStyle(color: Colors.white)),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
                       onPressed: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) => ReschedulePage(
-                              title: task!.taskTitle,
-                              date: "${task!.taskDate.toLocal()}".split(' ')[0],
-                              time: "${task!.taskStartTime.format(context)} - ${task!.taskEndTime.format(context)}",
+                              taskId: widget.taskId,
+                              userRole: widget.userRole,
+                              originalStartTime: start,
+                              originalEndTime: end,
+                              ownerId: data['ownerId'],
+                              taskTitle: data['taskTitle'],
                             ),
                           ),
                         );
                       },
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
                       child: const Text("Rescheduling", style: TextStyle(color: Colors.white)),
                     ),
                   ),
                 ],
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.only(top: 16),
-                child: Text(
-                  widget.userRole == 'owner'
-                      ? "You can only cancel/reschedule before the task starts."
-                      : "You can only cancel/reschedule after the task starts.",
-                  style: const TextStyle(color: Colors.redAccent),
-                ),
               ),
+            if (foremanCanComplete)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: completeTask,
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                  child: const Text("Mark as Completed", style: TextStyle(color: Colors.white)),
+                ),
+              )
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildField(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Text(value),
+          ),
+        ],
       ),
     );
   }

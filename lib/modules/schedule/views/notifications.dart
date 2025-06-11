@@ -1,145 +1,105 @@
+// notifications_page.dart
 import 'package:flutter/material.dart';
-import 'schedule.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 
-class NotificationsPage extends StatefulWidget {
-  const NotificationsPage({super.key});
-
-  @override
-  State<NotificationsPage> createState() => _NotificationsPageState();
-}
-
-class _NotificationsPageState extends State<NotificationsPage> {
-  bool showNewTask = true;
-
-  void handleDecision(String decision) {
-    setState(() {
-      showNewTask = false;
-    });
-
-    // TODO: send to backend or notify workshop owner
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Task $decision")),
-    );
-  }
+class NotificationsPage extends StatelessWidget {
+  final String userRole;
+  const NotificationsPage({super.key, required this.userRole});
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Notifications"),
-        centerTitle: true,
         backgroundColor: userRole == 'foreman' ? Colors.green : Colors.blue,
-        leading: const BackButton(),
+        centerTitle: true,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // ✅ New Task Assigned Request (Flexible Width + Dismiss on Tap)
-          if (showNewTask)
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE4FCE9),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.green.shade300),
-              ),
-              padding: const EdgeInsets.all(12),
-              margin: const EdgeInsets.only(bottom: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "New Task Assigned",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    "You have been assigned a new task by Wilson Auto Repairs.",
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text("Engine Repair", style: TextStyle(fontWeight: FontWeight.w600)),
-                        SizedBox(height: 4),
-                        Text("Sunday, March 30, 2025"),
-                        Text("10:00 AM - 12:00 PM"),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                        ),
-                        onPressed: () => handleDecision("declined"),
-                        child: const Text("Decline"),
-                      ),
-                      const SizedBox(width: 12),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                        ),
-                        onPressed: () => handleDecision("accepted"),
-                        child: const Text("Accept"),
-                      ),
-                    ],
-                  )
-                ],
-              ),
-            ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('notifications')
+            .where('userId', isEqualTo: currentUser?.uid)
+            .orderBy('timestamp', descending: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-          // Other notifications
-          notificationCard(
-            title: "Rescheduling Accepted",
-            body: "Wilson Auto Repair accepted your rescheduling request.",
-            time: "2 hours ago",
-          ),
-          notificationCard(
-            title: "Task Completed",
-            body: "Your task \"Oil Change\" has been marked as completed.",
-            time: "5 hours ago",
-          ),
-        ],
+          final docs = snapshot.data?.docs ?? [];
+
+          if (docs.isEmpty) {
+            return const Center(child: Text("No notifications found"));
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: docs.length,
+            itemBuilder: (context, index) {
+              final data = docs[index].data() as Map<String, dynamic>;
+              final timestamp = data['timestamp'] as Timestamp?;
+              final formattedTime = timestamp != null
+                  ? timeAgo(timestamp)
+                  : 'Unknown time';
+
+              final docRef = docs[index].reference;
+              if (data['isRead'] == false) {
+                docRef.update({'isRead': true});
+              }
+
+              return Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.shade200,
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      data['title'] ?? 'No Title',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(data['body'] ?? ''),
+                    const SizedBox(height: 6),
+                    Text(
+                      formattedTime,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                      ),
+                    )
+                  ],
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }
 
-  Widget notificationCard({
-    required String title,
-    required String body,
-    required String time,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4),
-          Text(body),
-          const SizedBox(height: 8),
-          Text(time, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-        ],
-      ),
-    );
+  String timeAgo(Timestamp timestamp) {
+    final now = DateTime.now();
+    final date = timestamp.toDate();
+    final diff = now.difference(date);
+
+    if (diff.inMinutes < 60) return "${diff.inMinutes} minutes ago";
+    if (diff.inHours < 24) return "${diff.inHours} hours ago";
+    return DateFormat('yMMMd').format(date);
   }
 }

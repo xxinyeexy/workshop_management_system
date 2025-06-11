@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 class ScheduleInfo {
   final String scheduleId;
@@ -41,41 +42,24 @@ class ScheduleInfo {
   });
 }
 
-final List<ScheduleInfo> mockScheduleList = [
-  ScheduleInfo(
-    scheduleId: 's1',
-    taskId: 't1',
-    taskTitle: 'Brake Replacement',
-    taskDescription: 'Replace front brake pads of CWS 1234',
-    taskStatus: 'Scheduled',
-    taskStartTime: const TimeOfDay(hour: 8, minute: 0),
-    taskEndTime: const TimeOfDay(hour: 10, minute: 0),
-    taskDate: DateTime(2025, 3, 30),
-    taskReward: 'RM 100',
-    foremanWorkStatus: 'Available',
-    workshopWorkStatus: 'Active',
-    notificationId: 'n1',
-    notificationType: 'Assignment',
-    notificationMessage: 'New task assigned',
-    notificationTimestamp: DateTime.now().subtract(const Duration(hours: 1)),
-    foremanName: 'Sarah Lee',
-  ),
-  ScheduleInfo(
-    scheduleId: 's2',
-    taskId: 't2',
-    taskTitle: 'Engine Repair',
-    taskDescription: 'Repair engine of WMS 9011',
-    taskStatus: 'In Progress',
-    taskStartTime: const TimeOfDay(hour: 9, minute: 0),
-    taskEndTime: const TimeOfDay(hour: 12, minute: 0),
-    taskDate: DateTime(2025, 3, 30),
-    taskReward: 'RM 150',
-    foremanWorkStatus: 'Busy',
-    workshopWorkStatus: 'Active',
-    notificationId: 'n2',
-    notificationType: 'Reminder',
-    notificationMessage: 'Engine repair ongoing',
-    notificationTimestamp: DateTime.now().subtract(const Duration(minutes: 30)),
-    foremanName: 'Mike Johnson',
-  ),
-];
+Future<void> saveScheduleToFirebase(ScheduleInfo schedule) async {
+  final db = FirebaseDatabase.instance.ref();
+  await db.child('schedules/${schedule.scheduleId}').set({
+    'taskId': schedule.taskId,
+    'taskTitle': schedule.taskTitle,
+    'taskDescription': schedule.taskDescription,
+    'taskStatus': schedule.taskStatus,
+    'taskStartTime': '${schedule.taskStartTime.hour}:${schedule.taskStartTime.minute}',
+    'taskEndTime': '${schedule.taskEndTime.hour}:${schedule.taskEndTime.minute}',
+    'taskDate': schedule.taskDate.toIso8601String(),
+    'taskReward': schedule.taskReward,
+    'foremanWorkStatus': schedule.foremanWorkStatus,
+    'workshopWorkStatus': schedule.workshopWorkStatus,
+    'notificationId': schedule.notificationId,
+    'notificationType': schedule.notificationType,
+    'notificationMessage': schedule.notificationMessage,
+    'notificationTimestamp': schedule.notificationTimestamp.toIso8601String(),
+    'foremanName': schedule.foremanName,
+  });
+}
+

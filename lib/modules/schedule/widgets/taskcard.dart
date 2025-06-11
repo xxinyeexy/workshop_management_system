@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import '../models/scheduleInfo.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/taskModel.dart';
+import 'package:intl/intl.dart';
 
 class TaskCard extends StatelessWidget {
-  final ScheduleInfo task;
+  final TaskModel task;
   final String userRole;
   final VoidCallback onTap;
 
@@ -13,10 +15,9 @@ class TaskCard extends StatelessWidget {
     required this.onTap,
   });
 
-  String formatTimeRange(BuildContext context) {
-    final start = task.taskStartTime.format(context);
-    final end = task.taskEndTime.format(context);
-    return '$start - $end';
+  String formatFullDateTime(Timestamp timestamp) {
+    final date = timestamp.toDate();
+    return DateFormat('EEEE, MMMM d, yyyy h:mma').format(date); // e.g. Sunday, March 30, 2025 9:00AM
   }
 
   Color getStatusColor(String status) {
@@ -36,51 +37,60 @@ class TaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final timeRange = formatTimeRange(context);
-    final dateStr = "${task.taskDate.year}-${task.taskDate.month.toString().padLeft(2, '0')}-${task.taskDate.day.toString().padLeft(2, '0')}";
+    final start = formatFullDateTime(task.taskStartTime);
+    final end = formatFullDateTime(task.taskEndTime);
     final statusColor = getStatusColor(task.taskStatus);
 
     return InkWell(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade300),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(task.taskTitle, style: const TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            if (userRole == 'owner')
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Foreman: ${task.foremanName}", style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                  Text(timeRange, style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                ],
-              )
-            else
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(task.taskDescription, style: const TextStyle(color: Colors.black87)),
-                  Text("$dateStr, $timeRange", style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                ],
-              ),
-            const SizedBox(height: 6),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
+            // Title and status row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(task.taskTitle, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: getStatusColor(task.taskStatus),
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Text(
+                    task.taskStatus,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
                 ),
-                child: Text(task.taskStatus, style: TextStyle(color: statusColor, fontSize: 12)),
-              ),
-            )
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            // Description
+            Text(
+              task.taskDescription,
+              style: const TextStyle(color: Colors.black54, fontSize: 14),
+            ),
+
+            const SizedBox(height: 12),
+
+            // Time range
+            Text(
+              "$start until",
+              style: const TextStyle(color: Colors.black54),
+            ),
+            Text(
+              end,
+              style: const TextStyle(color: Colors.black54),
+            ),
           ],
         ),
       ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:workshop_management_system/modules/rating/views/FindForemanWorkshopPage.dart';
-import 'package:workshop_management_system/modules/schedule/views/schedule.dart';
+import 'package:workshop_management_system/modules/schedule/views/Schedule.dart';
 
 enum UserRole { WorkshopOwner, Foreman }
 
@@ -57,16 +57,16 @@ class _SidebarMenuState extends State<SidebarMenu> {
   void _updatePendingRatingsCount() {
     final userRoleString =
         widget.userRole == UserRole.Foreman ? 'foreman' : 'workshop';
-    final pendingRatings = RatingService().getPendingRatingsForUser(
-      userRoleString,
-      widget.userName,
-      workshopName,
-    );
-    if (mounted) {
-      setState(() {
-        pendingRatingsCount = pendingRatings.length;
-      });
-    }
+    // final pendingRatings = RatingService().getPendingRatingsForUser(
+    //   userRoleString,
+    //   widget.userName,
+    //   workshopName,
+    // );
+    // if (mounted) {
+    //   setState(() {
+    //     pendingRatingsCount = pendingRatings.length;
+    //   });
+    // }
   }
 
   Color get primaryColor {
@@ -126,9 +126,9 @@ class _SidebarMenuState extends State<SidebarMenu> {
     switch (title) {
       case 'Schedule':
         page = Schedule(
-          userName: widget.userName,
-          userRole: userRoleString,
-          userPosition: widget.userPosition,
+          // userName: widget.userName,
+          // userRole: userRoleString,
+          // userPosition: widget.userPosition,
         );
         break;
 
@@ -154,13 +154,13 @@ class _SidebarMenuState extends State<SidebarMenu> {
         break;
 
       case 'Ratings':
-        page = FindForemanWorkshopPage(
-          userRole: ratingPageRoleString,
-          userName: widget.userName,
-          originalUserRole: userRoleString,
-          userPosition: widget.userPosition,
-          enumUserRole: widget.userRole,
-        );
+        // page = FindForemanWorkshopPage(
+        //   userRole: ratingPageRoleString,
+        //   userName: widget.userName,
+        //   originalUserRole: userRoleString,
+        //   userPosition: widget.userPosition,
+        //   enumUserRole: widget.userRole,
+        // );
         break;
 
       case 'Profile':
@@ -172,15 +172,15 @@ class _SidebarMenuState extends State<SidebarMenu> {
 
       default:
         page = Schedule(
-          userName: widget.userName,
-          userRole: userRoleString,
-          userPosition: widget.userPosition,
+          // userName: widget.userName,
+          // userRole: userRoleString,
+          // userPosition: widget.userPosition,
         );
     }
 
-    Navigator.of(
-      context,
-    ).pushReplacement(MaterialPageRoute(builder: (_) => page));
+    // Navigator.of(
+    //   context,
+    // ).pushReplacement(MaterialPageRoute(builder: (_) => page));
   }
 
   Widget _buildMenuItem({

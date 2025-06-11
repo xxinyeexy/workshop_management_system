@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import '../widgets/taskSummaryBox.dart';
+import '../models/taskModel.dart';
+import '../widgets/taskCard.dart';
 
 void showCancelTaskDialog({
   required BuildContext context,
-  required String taskTitle,
-  required String date,
-  required String time,
+  required TaskModel task,
+  required String userRole,
 }) {
   showDialog(
     context: context,
@@ -19,19 +19,19 @@ void showCancelTaskDialog({
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            Text(
-              "You are going to cancel the task, Engine Repair. If you confirm you want to cancel it, a notification will be sent to your workshop owner.",
+          children: [
+            const Text(
+              "You are going to cancel the task below. If you confirm, a notification will be sent to your workshop owner.",
             ),
-            SizedBox(height: 16),
-            TaskSummaryBox(
-              title: "Engine Repair",
-              date: "Sunday, March 30, 2025",
-              time: "9:00 AM - 12:00 PM",
+            const SizedBox(height: 16),
+            TaskCard(
+              task: task,
+              userRole: userRole,
+              onTap: () {}, // no navigation in dialog
             ),
           ],
         ),
-       actions: [
+        actions: [
           Row(
             children: [
               Expanded(
@@ -52,13 +52,12 @@ void showCancelTaskDialog({
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text("Task Cancellation Request sent")),
                     );
-                    // TODO: send updated schedule to backend
+                    // TODO: send cancellation request to backend
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  
                   child: const Text("Yes", style: TextStyle(color: Colors.white)),
                 ),
               ),

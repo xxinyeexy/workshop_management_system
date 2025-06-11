@@ -4,8 +4,6 @@ class ForemanCard extends StatelessWidget {
   final String name;
   final String time;
   final String? subtitle;
-  final String? status;
-  final Color? statusColor;
   final VoidCallback? onTap;
 
   const ForemanCard({
@@ -13,8 +11,6 @@ class ForemanCard extends StatelessWidget {
     required this.name,
     required this.time,
     this.subtitle,
-    this.status,
-    this.statusColor,
     this.onTap,
   });
 
@@ -49,18 +45,6 @@ class ForemanCard extends StatelessWidget {
                 ],
               ),
             ),
-            if (status != null && statusColor != null)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusColor!.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  status!,
-                  style: TextStyle(color: statusColor, fontSize: 12),
-                ),
-              ),
           ],
         ),
       ),
