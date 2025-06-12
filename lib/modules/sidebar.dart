@@ -37,13 +37,15 @@ class _SidebarMenuState extends State<SidebarMenu> {
   void initState() {
     super.initState();
     _setWorkshopName();
+    // Listen for changes in RatingService
+    RatingService().addListener(_updatePendingRatingsCount);
     _updatePendingRatingsCount();
   }
 
   @override
-  void didUpdateWidget(SidebarMenu oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _updatePendingRatingsCount();
+  void dispose() {
+    RatingService().removeListener(_updatePendingRatingsCount);
+    super.dispose();
   }
 
   void _setWorkshopName() {
@@ -58,10 +60,15 @@ class _SidebarMenuState extends State<SidebarMenu> {
   void _updatePendingRatingsCount() {
     final userRoleString =
         widget.userRole == UserRole.Foreman ? 'foreman' : 'workshop';
+    final currentWorkshopName =
+        widget.userRole == UserRole.WorkshopOwner
+            ? widget.userName
+            : workshopName; // Use the fetched workshopName
+
     final pendingRatings = RatingService().getPendingRatingsForUser(
       userRoleString,
       widget.userName,
-      workshopName,
+      currentWorkshopName,
     );
     if (mounted) {
       setState(() {
@@ -192,6 +199,7 @@ class _SidebarMenuState extends State<SidebarMenu> {
     required IconData icon,
     required String title,
     int? badgeCount,
+    bool isRatingItem = false,
   }) {
     final isSelected = widget.selectedTitle == title;
     return ListTile(
@@ -199,7 +207,7 @@ class _SidebarMenuState extends State<SidebarMenu> {
         clipBehavior: Clip.none,
         children: [
           Icon(icon, color: isSelected ? primaryColor : Colors.grey[700]),
-          if (badgeCount != null && badgeCount > 0)
+          if (isRatingItem && pendingRatingsCount > 0)
             Positioned(
               right: -8,
               top: -8,
@@ -211,7 +219,7 @@ class _SidebarMenuState extends State<SidebarMenu> {
                 ),
                 constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
                 child: Text(
-                  badgeCount.toString(),
+                  pendingRatingsCount.toString(),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 10,
@@ -223,34 +231,12 @@ class _SidebarMenuState extends State<SidebarMenu> {
             ),
         ],
       ),
-      title: Row(
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              color: isSelected ? primaryColor : Colors.black,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-          if (badgeCount != null && badgeCount > 0) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.red,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                badgeCount.toString(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ],
+      title: Text(
+        title,
+        style: TextStyle(
+          color: isSelected ? primaryColor : Colors.black,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
       ),
       selected: isSelected,
       onTap: () {
@@ -303,7 +289,7 @@ class _SidebarMenuState extends State<SidebarMenu> {
                       context: context,
                       icon: Icons.star,
                       title: 'Ratings',
-                      badgeCount: pendingRatingsCount,
+                      isRatingItem: true,
                     ),
                     _buildMenuItem(
                       context: context,

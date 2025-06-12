@@ -4,6 +4,8 @@ import 'dart:async';
 import '../../sidebar.dart';
 import 'package:workshop_management_system/modules/rating/views/RatingDetails.dart';
 import 'package:workshop_management_system/modules/rating/views/RatingListPage.dart';
+import 'package:workshop_management_system/modules/schedule/views/schedule.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class FindForemanWorkshopPage extends StatefulWidget {
   final String userRole;
@@ -33,6 +35,7 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
   List<Map<String, dynamic>> foremen = [];
   List<Map<String, dynamic>> workshops = [];
   bool isLoading = true;
+  int _pendingRatingsCount = 0;
 
   // Cache for rating data to avoid repeated queries
   final Map<String, Map<String, dynamic>> _ratingCache = {};
@@ -89,12 +92,15 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
     _tabController = TabController(length: 2, vsync: this);
     _fetchUsers();
     _setupRatingsListener();
+    RatingService().addListener(_updatePendingRatingsCount);
+    _updatePendingRatingsCount();
   }
 
   @override
   void dispose() {
     _ratingsSubscription?.cancel();
     _tabController.dispose();
+    RatingService().removeListener(_updatePendingRatingsCount);
     super.dispose();
   }
 
@@ -542,6 +548,11 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
         actions: [
           TextButton.icon(
             onPressed: () async {
+              String workshopNameForRatings =
+                  widget.userRole.toLowerCase() == 'workshop'
+                      ? widget.userName
+                      : await _getWorkshopNameForForeman();
+
               await Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -549,7 +560,7 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
                       (_) => RatingListPage(
                         userRole: widget.userRole.toLowerCase(),
                         userName: widget.userName,
-                        workshopName: workshopName,
+                        workshopName: workshopNameForRatings,
                         toRateList:
                             widget.userRole.toLowerCase() == 'foreman'
                                 ? workshops
@@ -581,8 +592,39 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
                 ),
               );
               _fetchUsers();
+              _updatePendingRatingsCount();
             },
-            icon: const Icon(Icons.reviews, color: Colors.white),
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.reviews, color: Colors.white),
+                if (_pendingRatingsCount > 0)
+                  Positioned(
+                    right: -8,
+                    top: -8,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        _pendingRatingsCount.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             label: const Text(
               "My Reviews",
               style: TextStyle(
@@ -653,5 +695,55 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
         ),
       ),
     );
+  }
+
+  Future<String> _getWorkshopNameForForeman() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return 'Unknown Workshop';
+    final userDoc =
+        await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    return userDoc.data()?['workshopName'] ?? 'Unknown Workshop';
+  }
+
+  void _updatePendingRatingsCount() {
+    final userRoleString = widget.userRole.toLowerCase();
+    String currentUserName = widget.userName;
+    String? currentWorkshopName;
+
+    if (userRoleString == 'foreman') {
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(FirebaseAuth.instance.currentUser?.uid)
+          .get()
+          .then((doc) {
+            currentWorkshopName = doc.data()?['workshopName'];
+            if (mounted) {
+              setState(() {
+                _pendingRatingsCount =
+                    RatingService()
+                        .getPendingRatingsForUser(
+                          userRoleString,
+                          currentUserName,
+                          currentWorkshopName ?? '',
+                        )
+                        .length;
+              });
+            }
+          });
+    } else {
+      currentWorkshopName = currentUserName;
+      if (mounted) {
+        setState(() {
+          _pendingRatingsCount =
+              RatingService()
+                  .getPendingRatingsForUser(
+                    userRoleString,
+                    currentUserName,
+                    currentWorkshopName!,
+                  )
+                  .length;
+        });
+      }
+    }
   }
 }
