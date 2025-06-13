@@ -41,48 +41,52 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBYm-oOy9yW5ZtdjK7WGq-qqBLcEUZEtoc',
-    appId: '1:831242395114:web:0b01bd56b9dda00600e693',
-    messagingSenderId: '831242395114',
-    projectId: 'inventory-30fb9',
-    authDomain: 'inventory-30fb9.firebaseapp.com',
-    storageBucket: 'inventory-30fb9.firebasestorage.app',
-    measurementId: 'G-XWNXJWGP99',
+    apiKey: 'AIzaSyBWat29sT_bq_-d7tVHaIOudlJezIRt674',
+    appId: '1:183542449378:web:29f1ab13e92853f991cabb',
+    messagingSenderId: '183542449378',
+    projectId: 'workshop-management-syst-1690e',
+    authDomain: 'workshop-management-syst-1690e.firebaseapp.com',
+    storageBucket: 'workshop-management-syst-1690e.firebasestorage.app',
+    measurementId: 'G-5Y2Q6G541D',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBC23-e-aKG_LIXmpcZHiMjEoVyvqzDxgU',
-    appId: '1:831242395114:android:8cb4ebc09cbc590a00e693',
-    messagingSenderId: '831242395114',
-    projectId: 'inventory-30fb9',
-    storageBucket: 'inventory-30fb9.firebasestorage.app',
+    apiKey: 'AIzaSyC0xCZGPqqy7cWrddmAro3JbvrYzf2qYnE',
+    appId: '1:183542449378:android:501d2ba934a54e1491cabb',
+    messagingSenderId: '183542449378',
+    projectId: 'workshop-management-syst-1690e',
+    storageBucket: 'workshop-management-syst-1690e.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDY_vKoHMx6vpoV9mOayC5pEDaszVwLXY4',
-    appId: '1:831242395114:ios:e19ae6ffe299d6bb00e693',
-    messagingSenderId: '831242395114',
-    projectId: 'inventory-30fb9',
-    storageBucket: 'inventory-30fb9.firebasestorage.app',
+    apiKey: 'AIzaSyDQmmY3IGozit-LsOwL6ZNeBlE3vs_yUfE',
+    appId: '1:183542449378:ios:4c27f6ef65d1604191cabb',
+    messagingSenderId: '183542449378',
+    projectId: 'workshop-management-syst-1690e',
+    storageBucket: 'workshop-management-syst-1690e.firebasestorage.app',
+    androidClientId: '183542449378-1vo6ps348c1o7df56lm9lhktmcdeu7nk.apps.googleusercontent.com',
+    iosClientId: '183542449378-1nsl3vvc21tkfvic409vqf89ddsku261.apps.googleusercontent.com',
     iosBundleId: 'com.example.workshopManagementSystem',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyDY_vKoHMx6vpoV9mOayC5pEDaszVwLXY4',
-    appId: '1:831242395114:ios:e19ae6ffe299d6bb00e693',
-    messagingSenderId: '831242395114',
-    projectId: 'inventory-30fb9',
-    storageBucket: 'inventory-30fb9.firebasestorage.app',
+    apiKey: 'AIzaSyDQmmY3IGozit-LsOwL6ZNeBlE3vs_yUfE',
+    appId: '1:183542449378:ios:4c27f6ef65d1604191cabb',
+    messagingSenderId: '183542449378',
+    projectId: 'workshop-management-syst-1690e',
+    storageBucket: 'workshop-management-syst-1690e.firebasestorage.app',
+    androidClientId: '183542449378-1vo6ps348c1o7df56lm9lhktmcdeu7nk.apps.googleusercontent.com',
+    iosClientId: '183542449378-1nsl3vvc21tkfvic409vqf89ddsku261.apps.googleusercontent.com',
     iosBundleId: 'com.example.workshopManagementSystem',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyBYm-oOy9yW5ZtdjK7WGq-qqBLcEUZEtoc',
-    appId: '1:831242395114:web:535be75056c5f6f500e693',
-    messagingSenderId: '831242395114',
-    projectId: 'inventory-30fb9',
-    authDomain: 'inventory-30fb9.firebaseapp.com',
-    storageBucket: 'inventory-30fb9.firebasestorage.app',
-    measurementId: 'G-EJ2LFHY30X',
+    apiKey: 'AIzaSyBWat29sT_bq_-d7tVHaIOudlJezIRt674',
+    appId: '1:183542449378:web:997a97656352729e91cabb',
+    messagingSenderId: '183542449378',
+    projectId: 'workshop-management-syst-1690e',
+    authDomain: 'workshop-management-syst-1690e.firebaseapp.com',
+    storageBucket: 'workshop-management-syst-1690e.firebasestorage.app',
+    measurementId: 'G-ZCJYPN9Z4N',
   );
 }
