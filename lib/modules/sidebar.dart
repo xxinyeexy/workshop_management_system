@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:workshop_management_system/modules/rating/views/FindForemanWorkshopPage.dart';
 import 'package:workshop_management_system/modules/schedule/views/schedule.dart';
-
+import 'package:workshop_management_system/modules/payment/views/PayrollInformationPage.dart';
 enum UserRole { WorkshopOwner, Foreman }
 
 class SidebarMenu extends StatelessWidget {
@@ -99,11 +99,11 @@ class SidebarMenu extends StatelessWidget {
         break;
 
       case 'Payroll':
-        page = buildPageWithDrawer(
-          'Payroll',
-          const Center(child: Text('Payroll Page')),
-        );
+        page = PayrollInformationPage(
+        role: userRoleString,
+      );
         break;
+
 
       case 'Ratings':
         // Pass all necessary data to FindForemanWorkshopPage so it can handle its own sidebar correctly
