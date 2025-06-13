@@ -1,100 +1,99 @@
-// lib/modules/inventory/views/page/SaleDetailsPage.dart
-
-import 'package:flutter/material.dart';
-import '../../models/MarketplaceInfo.dart';
-import '../../services/marketplace.model.dart';
-import 'package:workshop_management_system/routes/route.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
+import '../../models/MarketplaceInfo.dart';
+import '../../models/InventoryInfo.dart';
+import 'package:workshop_management_system/modules/inventory/providers/InventoryController.dart';
+
+import 'package:geolocator/geolocator.dart';
+
 
 class SaleDetailsPage extends StatefulWidget {
-  final String saleId; // Sale listing ID
-
+  final MarketplaceInfo sale_item;
+  final GeoPoint? user_geo_point;  //Get user location from marketplace
+  final int selected_quantity;
+  
   const SaleDetailsPage({
-    Key? key, 
-    required this.saleId,
-  }) : super(key: key);
+    super.key,
+    required this.sale_item,
+    this.user_geo_point,
+    required this.selected_quantity,
+  });
 
   @override
   _SaleDetailsPageState createState() => _SaleDetailsPageState();
 }
 
 class _SaleDetailsPageState extends State<SaleDetailsPage> {
-  final MarketplaceService _marketplaceService = MarketplaceService();
+  final InventoryController inventoryController = InventoryController(); //Access InventoryController
   bool _isLoading = true;
   bool _isProcessing = false;
-  MarketplaceInfo? _saleItem;
-  int _quantity = 1;
+  MarketplaceInfo? _sale_item;
+  late int selected_quantity; 
   String? _errorMessage;
+  late int current_user_id;
+  
 
   @override
   void initState() {
     super.initState();
-    _loadSaleDetails();
+    Hive.openBox('user'); //Open user box to get user_id
+    current_user_id = Hive.box('user').get('user_id') ?? 0;
+    
   }
 
-  Future<void> _loadSaleDetails() async {
-    try {
-      final item = await _marketplaceService.getListingById(widget.saleId);
-      if (mounted) {
-        setState(() {
-          _saleItem = item;
-          _quantity = item?.itemQuantity != null && item!.itemQuantity > 0 ? 1 : 0;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Error loading sale details: $e';
-          _isLoading = false;
-        });
-      }
-    }
-  }
+  
 
-  double get _totalCost => _quantity * (_saleItem?.itemCostPerUnit ?? 0);
+  double get _totalCost => selected_quantity * (_sale_item?.item_costperunit ?? 0);
 
-  void _updateQuantity(int value) {
-    if (_saleItem != null && value > 0 && value <= _saleItem!.itemQuantity) {
-      setState(() {
-        _quantity = value;
-      });
-    }
-  }
+ 
 
-  void _cancelRequest() {
+  void cancelRequest() {
     Navigator.pop(context);
   }
 
-  void _proceedToPayment() async {
-    if (_saleItem == null) return;
-    
-    setState(() {
-      _isProcessing = true;
-    });
+   void proceedToPayment() async {
+    if (_sale_item == null) return;
+
+    setState(() => _isProcessing = true);
 
     try {
-      // Simulate payment processing
-      await Future.delayed(const Duration(seconds: 2));
-      
-      // Here you would typically process the payment and update the listing status
-      
+      // Get current inventory info
+      final InventoryInfo? inv = 
+          await inventoryController.getInventoryInfo(widget.sale_item.listing_id!);
+
+      // Calculate new quantity
+      final int newQuantity = (inv?.item_quantity ?? 0) + selected_quantity;
+
+      // Update inventory quantity
+      await inventoryController.updateInventoryQuantity(
+        widget.sale_item.listing_id!,
+        newQuantity,
+      );
+
+      // Complete the listing by updating the payment status, listing status and buyer details
+      await inventoryController.completeSaleListing(
+        widget.sale_item.listing_id!,
+        current_user_id,
+        widget.user_geo_point,
+      );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Payment processed successfully'),
             backgroundColor: Colors.green,
-          )
+          ),
         );
-        Navigator.pop(context);
+        Navigator.pop(context, true); // Return true to indicate success
       }
-    } catch (e) {
+    } catch (e) { //Show error message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error processing payment: $e'),
             backgroundColor: Colors.red,
-          )
+          ),
         );
       }
     } finally {
@@ -110,9 +109,12 @@ class _SaleDetailsPageState extends State<SaleDetailsPage> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
+        backgroundColor: Colors.grey[100],
+
         appBar: AppBar(
-          title: const Text('Sale Details', style: TextStyle(color: Colors.white)),
-          backgroundColor: Colors.blue[600],
+          title: const Text('Sale Details',  //Title
+          style: TextStyle(color: Colors.white)), 
+          backgroundColor: Colors.indigo[500],
         ),
         body: const Center(
           child: CircularProgressIndicator(),
@@ -124,7 +126,7 @@ class _SaleDetailsPageState extends State<SaleDetailsPage> {
       return Scaffold(
         appBar: AppBar(
           title: const Text('Sale Details', style: TextStyle(color: Colors.white)),
-          backgroundColor: Colors.blue[600],
+          backgroundColor: Colors.indigo[500],
         ),
         body: Center(
           child: Text(
@@ -136,11 +138,11 @@ class _SaleDetailsPageState extends State<SaleDetailsPage> {
       );
     }
 
-    if (_saleItem == null) {
+    if (_sale_item == null) {
       return Scaffold(
         appBar: AppBar(
           title: const Text('Sale Details', style: TextStyle(color: Colors.white)),
-          backgroundColor: Colors.blue[600],
+          backgroundColor: Colors.indigo[500],
         ),
         body: const Center(
           child: Text('Sale item not found'),
@@ -155,7 +157,7 @@ class _SaleDetailsPageState extends State<SaleDetailsPage> {
           'Sale Details',
           style: TextStyle(color: Colors.white),
         ),
-        backgroundColor: Colors.blue[600],
+        backgroundColor: Colors.indigo[500],
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -181,11 +183,11 @@ class _SaleDetailsPageState extends State<SaleDetailsPage> {
                       color: Colors.grey[300],
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: _saleItem!.itemImage.isNotEmpty
+                    child: (_sale_item!.item_image != null && _sale_item!.item_image!.isNotEmpty)
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(4),
                             child: Image.network(
-                              _saleItem!.itemImage,
+                              _sale_item!.item_image ?? '',
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
                                 return const Icon(
@@ -209,15 +211,16 @@ class _SaleDetailsPageState extends State<SaleDetailsPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _saleItem!.itemName,
+                          _sale_item!.item_name,
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                        
                         const SizedBox(height: 4),
                         Text(
-                          'From: ${_saleItem!.sellerLocation ?? "Unknown"}',
+                          'From: ${_sale_item!.seller_name ?? "Unknown seller"}',
                           style: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 14,
@@ -259,11 +262,11 @@ class _SaleDetailsPageState extends State<SaleDetailsPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _saleItem!.sellerLocation ?? 'Not specified',
+                    ' ${_sale_item!.seller_name ?? "Unknown Workshop"}',
                     style: const TextStyle(fontSize: 14),
                   ),
                   const Text(
-                    '123 Mechanic Street Automotive District',
+                    '123 Mechanic Street Automotive District', ///owner_wordkshop_location
                     style: TextStyle(fontSize: 14),
                   ),
                   const Text(
@@ -290,7 +293,7 @@ class _SaleDetailsPageState extends State<SaleDetailsPage> {
                         style: TextStyle(fontSize: 16),
                       ),
                       Text(
-                        '$_quantity units',
+                        '$selected_quantity units',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -310,7 +313,7 @@ class _SaleDetailsPageState extends State<SaleDetailsPage> {
                         style: TextStyle(fontSize: 16),
                       ),
                       Text(
-                        'RM ${_saleItem!.itemCostPerUnit.toStringAsFixed(2)}',
+                        'RM ${_sale_item!.item_costperunit.toStringAsFixed(2)}',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -334,7 +337,7 @@ class _SaleDetailsPageState extends State<SaleDetailsPage> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Colors.blue[700],
+                          color: Colors.indigo[500],
                         ),
                       ),
                     ],
@@ -353,7 +356,7 @@ class _SaleDetailsPageState extends State<SaleDetailsPage> {
                   // Cancel Button
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: _isProcessing ? null : _cancelRequest,
+                      onPressed: _isProcessing ? null : cancelRequest,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.grey[200],
                         foregroundColor: Colors.black87,
@@ -362,7 +365,7 @@ class _SaleDetailsPageState extends State<SaleDetailsPage> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: const Text('Cancel Request'),
+                      child: const Text('Cancel'),
                     ),
                   ),
                   
@@ -371,11 +374,11 @@ class _SaleDetailsPageState extends State<SaleDetailsPage> {
                   // Proceed Button
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: _isProcessing || _quantity <= 0 
+                      onPressed: _isProcessing || selected_quantity <= 0 
                           ? null 
-                          : _proceedToPayment,
+                          : proceedToPayment,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue[600],
+                        backgroundColor: Colors.indigo[500],
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(

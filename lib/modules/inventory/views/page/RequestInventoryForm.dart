@@ -1,77 +1,67 @@
-// lib/screens/RequestInventoryForm.dart
-
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import '../../models/InventoryInfo.dart';
 import '../../models/MarketplaceInfo.dart';
-import '../../services/marketplace.model.dart';
+
+import 'package:workshop_management_system/modules/inventory/providers/InventoryController.dart';
+
 import 'package:workshop_management_system/routes/route.dart'; 
 
-class RequestInventoryForm extends StatefulWidget {
-  final InventoryInfo? item;
 
-  const RequestInventoryForm({Key? key, this.item}) : super(key: key);
+class RequestInventoryForm extends StatefulWidget {
+  final GeoPoint? user_geo_point; //Pass geopoint as user location
+  const RequestInventoryForm({super.key, this.user_geo_point});
+  
 
   @override
   _RequestInventoryFormState createState() => _RequestInventoryFormState();
 }
 
 class _RequestInventoryFormState extends State<RequestInventoryForm> {
-  final _formKey = GlobalKey<FormState>();
-  final MarketplaceService _marketplaceService = MarketplaceService();
+  final _form_key = GlobalKey<FormState>();
+  final InventoryController inventoryController = InventoryController(); //Access to inventory controller
+
+ 
 
   // Text controllers
-  final _nameController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _quantityController = TextEditingController(text: '0');
-  final _costController = TextEditingController(text: '0.00');
+  final _name_controller = TextEditingController();
+  final _description_controller = TextEditingController();
+  final _quantity_controller = TextEditingController();
+  final _cost_controller = TextEditingController();
 
   // Image related variables
-  File? _imageFile;
-  String? _uploadedImageUrl;
-  bool _isUploading = false;
+  File? _image_file;
+  String? _uploaded_image_url;
+  bool _is_uploading = false;
 
-  // User information (would normally come from auth)
-  final String _userId = 'current_user_id'; // Replace with actual user ID
-  final String _userLocation = '123 Mechanic Street Automotive District, Kuala Lumpur, 50000';
-  final String _userName = 'Your Workshop'; // Replace with actual workshop name
-
-  @override
-  void initState() {
-    super.initState();
-    
-    // If item is provided, prefill the form
-    if (widget.item != null) {
-      _nameController.text = widget.item!.itemName;
-      _descriptionController.text = widget.item!.itemDescription;
-      _quantityController.text = widget.item!.itemQuantity.toString();
-      _costController.text = widget.item!.itemCostPerUnit.toString();
-      _uploadedImageUrl = widget.item!.itemImage;
-    }
-  }
+  // User information
+  final String _buyer_id = 'current_user_id'; // owner.onwer.id
+  final String _buyer_name = 'Current User'; // owner.owner_name
+  
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _descriptionController.dispose();
-    _quantityController.dispose();
-    _costController.dispose();
+    _name_controller.dispose();
+    _description_controller.dispose();
+    _quantity_controller.dispose();
+    _cost_controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: const Text(
-          'Make Request',
+          'Make Request', //Title
           style: TextStyle(color: Colors.white),
         ),
-        backgroundColor: Colors.blue[600],
+        backgroundColor: Colors.indigo[500],
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -87,31 +77,44 @@ class _RequestInventoryFormState extends State<RequestInventoryForm> {
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Form(
-              key: _formKey,
+              key: _form_key,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Image picker section
+                  // Upload image section 
                   Center(
-                    child: Stack(
+                    child: Column(
                       children: [
-                        Container(
-                          width: 150,
-                          height: 150,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: _buildImageWidget(),
+                        Stack(
+                          children: [
+                            Container(
+                              width: 150,
+                              height: 150,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: buildImageWidget(),
+                            ),
+                            Positioned(
+                              right: 0,
+                              bottom: 0,
+                              child: FloatingActionButton(
+                                mini: true,
+                                backgroundColor: Colors.indigo[500],
+                                onPressed: pickImage,
+                                child: const Icon(Icons.add, color: Colors.white),
+                              ),
+                            ),
+                          ],
                         ),
-                        Positioned(
-                          right: 0,
-                          bottom: 0,
-                          child: FloatingActionButton(
-                            mini: true,
-                            backgroundColor: Colors.blue[600],
-                            onPressed: _pickImage,
-                            child: const Icon(Icons.add, color: Colors.white),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Add Image (Optional)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                            fontStyle: FontStyle.italic,
                           ),
                         ),
                       ],
@@ -126,7 +129,7 @@ class _RequestInventoryFormState extends State<RequestInventoryForm> {
                   ),
                   const SizedBox(height: 8),
                   TextFormField(
-                    controller: _nameController,
+                    controller: _name_controller,  //Input item_name
                     decoration: const InputDecoration(
                       hintText: 'e.g. Engine Oil',
                       border: OutlineInputBorder(),
@@ -137,21 +140,21 @@ class _RequestInventoryFormState extends State<RequestInventoryForm> {
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter item name';
+                        return 'Please enter item name';  //Display error message
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: 16),
 
-                  // Description field
+                  // Item Description 
                   const Text(
                     'Description',
                     style: TextStyle(fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 8),
                   TextFormField(
-                    controller: _descriptionController,
+                    controller: _description_controller,
                     decoration: const InputDecoration(
                       hintText: 'e.g. Synthetic 5W-30',
                       border: OutlineInputBorder(),
@@ -163,7 +166,7 @@ class _RequestInventoryFormState extends State<RequestInventoryForm> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Quantity and Cost fields in a row
+                  
                   Row(
                     children: [
                       Expanded(
@@ -176,7 +179,7 @@ class _RequestInventoryFormState extends State<RequestInventoryForm> {
                             ),
                             const SizedBox(height: 8),
                             TextFormField(
-                              controller: _quantityController,
+                              controller: _quantity_controller, //Input item_quantity
                               keyboardType: TextInputType.number,
                               inputFormatters: [
                                 FilteringTextInputFormatter.digitsOnly,
@@ -189,7 +192,7 @@ class _RequestInventoryFormState extends State<RequestInventoryForm> {
                                   vertical: 16,
                                 ),
                               ),
-                              validator: (value) {
+                              validator: (value) { //validation
                                 if (value == null || value.isEmpty) {
                                   return 'Required';
                                 }
@@ -213,7 +216,7 @@ class _RequestInventoryFormState extends State<RequestInventoryForm> {
                             ),
                             const SizedBox(height: 8),
                             TextFormField(
-                              controller: _costController,
+                              controller: _cost_controller, //Input item_costperunit
                               keyboardType: const TextInputType.numberWithOptions(
                                 decimal: true,
                               ),
@@ -232,7 +235,7 @@ class _RequestInventoryFormState extends State<RequestInventoryForm> {
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Required';
+                                  return 'Required'; //validation
                                 }
                                 if (double.parse(value) <= 0) {
                                   return 'Must be > 0';
@@ -249,9 +252,9 @@ class _RequestInventoryFormState extends State<RequestInventoryForm> {
 
                   // Submit button
                   ElevatedButton(
-                    onPressed: _isUploading ? null : _submitForm,
+                    onPressed: _is_uploading ? null : addRequestItem,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue[600],
+                      backgroundColor: Colors.indigo[500],
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       textStyle: const TextStyle(
                         fontSize: 16,
@@ -261,7 +264,7 @@ class _RequestInventoryFormState extends State<RequestInventoryForm> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: _isUploading
+                    child: _is_uploading
                         ? const SizedBox(
                             height: 20,
                             width: 20,
@@ -285,22 +288,22 @@ class _RequestInventoryFormState extends State<RequestInventoryForm> {
   }
 
   // Build image widget based on current state
-  Widget _buildImageWidget() {
-    if (_imageFile != null) {
+  Widget buildImageWidget() {
+    if (_image_file != null) {
       // Show new selected image file
       return ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: Image.file(
-          _imageFile!,
+          _image_file!,
           fit: BoxFit.cover,
         ),
       );
-    } else if (_uploadedImageUrl != null && _uploadedImageUrl!.isNotEmpty) {
+    } else if (_uploaded_image_url != null && _uploaded_image_url!.isNotEmpty) {
       // Show existing image from URL
       return ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: Image.network(
-          _uploadedImageUrl!,
+          _uploaded_image_url!,
           fit: BoxFit.cover,
           loadingBuilder: (context, child, loadingProgress) {
             if (loadingProgress == null) return child;
@@ -333,7 +336,7 @@ class _RequestInventoryFormState extends State<RequestInventoryForm> {
   }
 
   // Pick image from gallery or camera
-  Future<void> _pickImage() async {
+  Future<void> pickImage() async {
     final ImagePicker picker = ImagePicker();
 
     showModalBottomSheet(
@@ -353,7 +356,7 @@ class _RequestInventoryFormState extends State<RequestInventoryForm> {
                   );
                   if (image != null) {
                     setState(() {
-                      _imageFile = File(image.path);
+                      _image_file = File(image.path);
                     });
                   }
                 },
@@ -369,7 +372,7 @@ class _RequestInventoryFormState extends State<RequestInventoryForm> {
                   );
                   if (photo != null) {
                     setState(() {
-                      _imageFile = File(photo.path);
+                      _image_file = File(photo.path);
                     });
                   }
                 },
@@ -382,8 +385,8 @@ class _RequestInventoryFormState extends State<RequestInventoryForm> {
   }
 
   // Upload image to Firebase Storage
-  Future<String?> _uploadImage() async {
-    if (_imageFile == null) return _uploadedImageUrl;
+  Future<String?> uploadImage() async {
+    if (_image_file == null) return null; // Return null if no image selected
 
     try {
       final storageRef = FirebaseStorage.instance
@@ -391,7 +394,7 @@ class _RequestInventoryFormState extends State<RequestInventoryForm> {
           .child('marketplace_requests')
           .child('${DateTime.now().millisecondsSinceEpoch}.jpg');
 
-      final uploadTask = storageRef.putFile(_imageFile!);
+      final uploadTask = storageRef.putFile(_image_file!);
       final snapshot = await uploadTask;
 
       return await snapshot.ref.getDownloadURL();
@@ -405,34 +408,38 @@ class _RequestInventoryFormState extends State<RequestInventoryForm> {
   }
 
   // Submit the form
-  void _submitForm() async {
-    if (_formKey.currentState!.validate()) {
+  void addRequestItem() async {
+    if (_form_key.currentState!.validate()) {
       // Start loading
       setState(() {
-        _isUploading = true;
+        _is_uploading = true;
       });
 
       try {
-        // Upload image if selected
-        if (_imageFile != null) {
-          _uploadedImageUrl = await _uploadImage();
+        // Upload image if selected, otherwise keep it null
+        String? finalImageUrl;
+        if (_image_file != null) {
+          finalImageUrl = await uploadImage();
         }
 
-        // Create marketplace request using the factory method
-        final newRequest = MarketplaceInfo.emptyRequest(
-          buyerId: _userId,
-          buyerLocation: _userName,
-        ).copyWith(
-          itemName: _nameController.text.trim(),
-          itemDescription: _descriptionController.text.trim(),
-          itemQuantity: int.parse(_quantityController.text),
-          itemCostPerUnit: double.parse(_costController.text),
-          itemImage: _uploadedImageUrl ?? '',
-          createdAt: DateTime.now(),
+        // Create marketplace listing
+        final newRequest = MarketplaceInfo(
+          listing_type: ListingType.request,
+          item_name: _name_controller.text.trim(),
+          item_description: _description_controller.text.trim(),
+          item_quantity: int.parse(_quantity_controller.text),
+          item_costperunit: double.parse(_cost_controller.text),
+          item_image: finalImageUrl, // Nullable
+          buyer_id: _buyer_id,
+          buyer_name: _buyer_name,
+          buyer_location: widget.user_geo_point,
+          listing_status: ListingStatus.pending,
+          created_at: DateTime.now(),
+          updated_at: DateTime.now(),
         );
 
         // Save to Firestore
-        await _marketplaceService.createListing(newRequest);
+        await inventoryController.createListing(newRequest);
 
         // Navigate back with success message
         if (mounted) {
@@ -455,7 +462,7 @@ class _RequestInventoryFormState extends State<RequestInventoryForm> {
         // Stop loading
         if (mounted) {
           setState(() {
-            _isUploading = false;
+            _is_uploading = false;
           });
         }
       }

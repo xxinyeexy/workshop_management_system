@@ -4,11 +4,12 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:workshop_management_system/modules/inventory/models/InventoryInfo.dart';
-import 'package:workshop_management_system/modules/inventory/services/inventory.model.dart';
+import 'package:workshop_management_system/modules/inventory/providers/InventoryController.dart';
+
 import 'package:workshop_management_system/routes/route.dart';
 
 class AddInventoryPage extends StatefulWidget {
-  const AddInventoryPage({Key? key}) : super(key: key);
+  const AddInventoryPage({super.key});
 
   @override
   _AddInventoryPageState createState() => _AddInventoryPageState();
@@ -16,7 +17,7 @@ class AddInventoryPage extends StatefulWidget {
 
 class _AddInventoryPageState extends State<AddInventoryPage> {
   final _formKey = GlobalKey<FormState>();
-  final InventoryService _inventoryService = InventoryService();
+  final InventoryController inventoryController = InventoryController(); //InventoryController 
 
   // Text controllers
   final _nameController = TextEditingController();
@@ -24,7 +25,7 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
   final _quantityController = TextEditingController();
   final _costController = TextEditingController();
 
-  // Image related variables
+  // Image operation variable
   File? _imageFile;
   String? _uploadedImageUrl;
   bool _isUploading = false;
@@ -39,13 +40,13 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) {  
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: const Text(
           'Add Inventory Item',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: Colors.white),  //Title: 'Add Inventory Item'
         ),
         backgroundColor: Colors.indigo[500],
         elevation: 0,
@@ -67,48 +68,80 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Image picker section
+                  // Upload image section
                   Center(
-                    child: Stack(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Container(
-                          width: 150,
-                          height: 150,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child:
-                              _imageFile != null
-                                  ? ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.file(
-                                      _imageFile!,
-                                      fit: BoxFit.cover,
+                        Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Container(
+                              width: 150,
+                              height: 150,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child:
+                                  _imageFile != null
+                                      ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: Image.file(
+                                          _imageFile!,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      )
+                                      : Icon(
+                                        Icons.camera_alt,
+                                        size: 40,
+                                        color: Colors.grey[400],
+                                      ),
+                            ),
+                            Positioned(
+                              bottom: -4,
+                              right: -4,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black26,
+                                      blurRadius: 4,
+                                      offset: Offset(0, 2),
                                     ),
-                                  )
-                                  : const Icon(
-                                    Icons.camera_alt,
-                                    size: 50,
-                                    color: Colors.grey,
+                                  ],
+                                ),
+                                child: FloatingActionButton(
+                                  heroTag: 'addImageBtn',
+                                  mini: true,
+                                  backgroundColor: Colors.indigo,
+                                  onPressed: _pickImage,
+                                  child: const Icon(
+                                    Icons.add,
+                                    color: Colors.white,
                                   ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        Positioned(
-                          right: 0,
-                          bottom: 0,
-                          child: FloatingActionButton(
-                            mini: true,
-                            backgroundColor: Colors.indigo[500],
-                            onPressed: _pickImage,
-                            child: const Icon(Icons.add, color: Colors.white),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Add Image (Optional)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                            fontStyle: FontStyle.italic,
                           ),
                         ),
                       ],
                     ),
                   ),
+
                   const SizedBox(height: 24),
 
-                  // Text field for input itemName (Required)
+                  // Text field for input item_name (Required)
                   const Text(
                     'Item Name *',
                     style: TextStyle(fontWeight: FontWeight.w500),
@@ -116,6 +149,7 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _nameController,
+                    keyboardType: TextInputType.text,
                     decoration: const InputDecoration(
                       hintText: 'e.g. Engine Oil',
                       border: OutlineInputBorder(),
@@ -133,7 +167,7 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Text field for input itemDescription (Not Required)
+                  // Text field for input item_description (Not Required)
                   const Text(
                     'Description',
                     style: TextStyle(fontWeight: FontWeight.w500),
@@ -141,8 +175,10 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _descriptionController,
+                    keyboardType: TextInputType.text,
                     decoration: const InputDecoration(
                       hintText: 'e.g. Synthetic 5W-30',
+
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.symmetric(
                         horizontal: 12,
@@ -152,7 +188,7 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Text field for input itemQuantity and itemCostPerUnit (Required)
+                  // Text field for input item_quantity and item_costperunit (Required)
                   Row(
                     children: [
                       Expanded(
@@ -227,7 +263,7 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
                                 }
                                 if (double.tryParse(value) == null ||
                                     double.parse(value) <= 0.00) {
-                                  return 'Invalid Cost'; // Return inline error message when input itemCostPerUnit <=0.00
+                                  return 'Invalid Cost'; // Return inline error message when input item_costperunit <=0.00
                                 }
                                 return null;
                               },
@@ -241,7 +277,7 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
 
                   // Submit button
                   ElevatedButton(
-                    onPressed: _isUploading ? null : _submitForm,
+                    onPressed: _isUploading ? null : createNewItem,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.indigo[500],
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -281,7 +317,7 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
 
-    // Show image source selection dialog
+    
     showModalBottomSheet(
       context: context,
       builder: (BuildContext context) {
@@ -350,33 +386,34 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
     }
   }
 
-  // Submit the form
-  void _submitForm() async {
+  // Submit the form and create a new inventory item
+  void createNewItem() async {
     if (_formKey.currentState!.validate()) {
-      // Start loading
       setState(() {
         _isUploading = true;
       });
 
       try {
-        // Upload image if selected
+        // Upload image 
         if (_imageFile != null) {
           _uploadedImageUrl = await _uploadImage();
         }
 
-        // Create inventory item
+        // Create new inventory item
         final newItem = InventoryInfo(
-          itemName: _nameController.text.trim(),
-          itemDescription: _descriptionController.text.trim(),
-          itemQuantity: int.parse(_quantityController.text),
-          itemCostPerUnit: double.parse(_costController.text),
-          itemImage: _uploadedImageUrl ?? '',
+          item_name: _nameController.text.trim(),
+          item_description: _descriptionController.text.trim(),
+          item_quantity: int.parse(_quantityController.text),
+          item_costperunit: double.parse(_costController.text),
+          item_image: _uploadedImageUrl ?? '',
+          created_at: DateTime.now(),
+          updated_at: DateTime.now(),
         );
 
-        // Save to Firestore
-        await _inventoryService.addInventoryItem(newItem);
+        // Add the new created item to InventoryInfo
+        await inventoryController.addInventoryItem(newItem);
 
-        // Navigate back with success message
+        // Display success message
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -390,13 +427,13 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
           AppRouter.goBack(context);
         }
       } catch (e) {
-        //print('Error adding inventory item: $e');
+       
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
                 'Error adding inventory item: ${e.toString()}',
-              ), // e.toString()
+              ), // Display Error message
               duration: const Duration(seconds: 2),
               backgroundColor: Colors.red,
             ),

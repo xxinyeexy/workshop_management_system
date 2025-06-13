@@ -1,43 +1,53 @@
 import 'package:flutter/material.dart';
 import 'package:workshop_management_system/modules/inventory/models/InventoryInfo.dart';
-import 'package:workshop_management_system/modules/inventory/services/inventory.model.dart';
+import 'package:workshop_management_system/modules/inventory/providers/InventoryController.dart';
+
 import 'package:workshop_management_system/routes/route.dart';
+import 'package:workshop_management_system/widgets/menu.dart';
 
 class InventoryPage extends StatefulWidget {
-  const InventoryPage({Key? key}) : super(key: key);
+  const InventoryPage({super.key});
 
   @override
   _InventoryPageState createState() => _InventoryPageState();
 }
 
 class _InventoryPageState extends State<InventoryPage> {
-  final InventoryService _inventoryService = InventoryService();
-  String _searchQuery = '';
+  final InventoryController inventoryController = InventoryController();  //Access to InventoryController
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100], // Light gray background
+      key: _scaffoldKey,
+      drawer: const AppDrawer(
+        userName: 'John Smith', //owner_name
+        userRole: 'Workshop Owner', //owner_role
+      ), //Menu with user info
+      backgroundColor: Colors.grey[100], 
       appBar: AppBar(
         title: const Text(
-          'Inventory',
+          'Inventory', //Title
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
         ),
-        backgroundColor: Colors.indigo[500], // Indigo color as in the image
+        backgroundColor: Colors.indigo[500], 
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.menu, color: Colors.white),
-          onPressed: () {
-            // Open drawer menu
-            Scaffold.of(context).openDrawer();
-          },
+        leading: Builder(
+          builder:
+              (context) => IconButton(
+                icon: const Icon(Icons.menu, color: Colors.white),
+                onPressed: () {
+                  Scaffold.of(context).openDrawer(); // Alternative method
+                },
+              ),
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.add, color: Colors.white),
-            onPressed: () {
-              // Navigate to add inventory page
-              AppRouter.navigateTo(context, AppRoutes.addInventory);
+            onPressed: () { addInventory() {
+                    // Navigate to AddInventoryForm.dart
+                    AppRouter.navigateTo(context, AppRoutes.addInventory);
+                  }
             },
           ),
         ],
@@ -48,9 +58,7 @@ class _InventoryPageState extends State<InventoryPage> {
 
   Widget _buildInventoryList() {
     return StreamBuilder<List<InventoryInfo>>(
-      stream: _searchQuery.isEmpty 
-          ? _inventoryService.getInventory() 
-          : _inventoryService.searchInventory(_searchQuery),
+      stream: inventoryController.getInventory(), 
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -73,13 +81,14 @@ class _InventoryPageState extends State<InventoryPage> {
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: () {
-                    AppRouter.navigateTo(context, AppRoutes.addInventory);
-                  },
+                  onPressed: () => addInventory(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.indigo[500],
                   ),
-                  child: const Text('Add Item', style: TextStyle(color: Colors.white)),
+                  child: const Text(
+                    'Add Item',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ],
             ),
@@ -87,7 +96,7 @@ class _InventoryPageState extends State<InventoryPage> {
         }
 
         final items = snapshot.data!;
-        
+
         return Padding(
           padding: const EdgeInsets.all(16.0),
           child: ListView.builder(
@@ -106,7 +115,7 @@ class _InventoryPageState extends State<InventoryPage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Dismissible(
-        key: Key(item.itemId ?? 'unknown'),
+        key: Key(item.item_id ?? 'unknown'),
         background: Container(
           alignment: Alignment.centerRight,
           padding: const EdgeInsets.only(right: 20.0),
@@ -122,96 +131,102 @@ class _InventoryPageState extends State<InventoryPage> {
                 ),
               ),
               SizedBox(width: 8),
-              Icon(
-                Icons.delete,
-                color: Colors.white,
-              ),
+              Icon(Icons.delete, color: Colors.white),
             ],
           ),
         ),
         direction: DismissDirection.endToStart,
         confirmDismiss: (direction) async {
-          return await _showDeleteConfirmation(item);
+          return await showDeleteConfirmation(item);
         },
         onDismissed: (direction) {
-          _deleteItem(item);
+          deleteItem(item);
         },
         child: Card(
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.grey[300]!),
           ),
+
           child: InkWell(
-            onTap: () {
-              AppRouter.navigateTo(
-                context, 
-                AppRoutes.editInventory,
-                arguments: item,
-              );
-            },
+            onTap: () => editInventory(context, item),
             borderRadius: BorderRadius.circular(12),
             child: Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Column(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Item Image
                   Container(
-                  width: 80,
-                  height: 80,
-                  margin: const EdgeInsets.only(right: 16),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    color: Colors.grey[200],
-                    image: item.itemImage.isNotEmpty
-                        ? DecorationImage(
-                            image: NetworkImage(item.itemImage),  // display Url image
-                            fit: BoxFit.cover,
-                          )
-                        : null,
+                    width: 80,
+                    height: 80,
+                    margin: const EdgeInsets.only(right: 16),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.grey[200],
+                      image:
+                          item.item_image.isNotEmpty
+                              ? DecorationImage(
+                                image: NetworkImage(item.item_image),
+                                fit: BoxFit.cover,
+                              )
+                              : null,
+                    ),
+                    child:
+                        item.item_image.isEmpty
+                            ? const Center(
+                              child: Icon(
+                                Icons.image_not_supported,
+                                color: Colors.grey,
+                              ),
+                            )
+                            : null,
                   ),
-                  child: item.itemImage.isEmpty
-                      ? const Center(
-                          child: Icon(
-                            Icons.image_not_supported,
-                            color: Colors.grey,
+
+                  // Inventory List Display
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.item_name,    //item_name
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
-                        )
-                      : null,
-                ),
-                  Text(
-                    item.itemName,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    item.itemDescription,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Qty: ${item.itemQuantity}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: item.itemQuantity == 0 ? Colors.red : Colors.black87,
-                          fontWeight: FontWeight.bold,
                         ),
-                      ),
-                      Text(
-                        'RM ${item.itemCostPerUnit.toStringAsFixed(2)}/unit',
-                        style: const TextStyle(
-                          fontSize: 14,
+                        const SizedBox(height: 4),
+                        Text(
+                          item.item_description,  //item_description
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Qty: ${item.item_quantity}', //item_quantity
+                              style: TextStyle(
+                                fontSize: 14,
+                                color:
+                                    item.item_quantity == 0    //Qty=0 (Red)
+                                        ? Colors.red
+                                        : Colors.black87,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'RM ${item.item_costperunit.toStringAsFixed(2)}/unit', //item_costperunit
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -222,42 +237,58 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  Future<bool> _showDeleteConfirmation(InventoryInfo item) async {
+  void addInventory(BuildContext context) {
+  AppRouter.navigateTo(context, AppRoutes.addInventory);
+}
+
+void editInventory(BuildContext context, InventoryInfo item) {
+  AppRouter.navigateTo(
+    context,
+    AppRoutes.editInventory,
+    arguments: item,
+  );
+}
+
+//Display delete confirmation box when user wants to delete inventory
+  Future<bool> showDeleteConfirmation(InventoryInfo item) async {
     return await showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Delete Item'),
-          content: Text('Are you sure you want to delete ${item.itemName}?'),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('CANCEL'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text(
-                'DELETE',
-                style: TextStyle(color: Colors.red),
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Delete Item'),
+              content: Text(
+                'Are you sure you want to delete ${item.item_name}?',
               ),
-            ),
-          ],
-        );
-      },
-    ) ?? false; // In case dialog is dismissed
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('CANCEL'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text(
+                    'DELETE',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false; 
   }
 
-  void _deleteItem(InventoryInfo item) async {
+  void deleteItem(InventoryInfo item) async {
     try {
-      await _inventoryService.deleteInventoryItem(item.itemId!);
+      await inventoryController.deleteInventoryItem(item.item_id!); 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${item.itemName} deleted'),
+          content: Text('${item.item_name} deleted'),
           action: SnackBarAction(
             label: 'UNDO',
             onPressed: () {
               // Add the item back
-              _inventoryService.addInventoryItem(item);
+              inventoryController.addInventoryItem(item);
             },
           ),
         ),

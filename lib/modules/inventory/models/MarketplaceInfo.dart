@@ -1,285 +1,262 @@
-import 'package:workshop_management_system/modules/inventory/models/InventoryInfo.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Enum representing listing types
 enum ListingType {
   sale,
-  request
+  request,
 }
 
-/// Enum representing listing status
 enum ListingStatus {
   pending,
-  done
+  done,
 }
 
-/// Enum representing payment status
 enum PaymentStatus {
   pending,
   paid,
-  failed
+  failed,
 }
 
 class MarketplaceInfo {
-  final String ?listingId; // Firestore document ID (corresponds to listing_id)
-  final ListingType listingType;
-  final String itemName;
-  final String itemDescription;
-  final int itemQuantity;
-  final double itemCostPerUnit;
-  final String itemImage;
-  final ListingStatus listingStatus;
-  final String? sellerId;
-  final String? sellerLocation;
-  final String? buyerId;
-  final String? buyerLocation;
-  final PaymentStatus paymentStatus;
-  final DateTime createdAt; // Additional field for sorting and filtering
-  final DateTime? updatedAt; // Additional field to track updates
+  final String? listing_id;
+  final ListingType listing_type;
+  final String item_name;
+  final String item_description;
+  final int item_quantity;
+  final double item_costperunit;
+  final String? item_image;
+  final ListingStatus listing_status;
+  final String? seller_id;
+  final String? seller_name;
+  final GeoPoint? seller_location;
+  final String? buyer_id;
+  final String? buyer_name;
+  final GeoPoint? buyer_location;
+  final PaymentStatus payment_status;
+  final DateTime created_at;
+  final DateTime? updated_at;
 
-  // Constructor
   MarketplaceInfo({
-    this.listingId,
-    required this.listingType,
-    required this.itemName,
-    required this.itemDescription,
-    required this.itemQuantity,
-    required this.itemCostPerUnit,
-    required this.itemImage,
-    this.listingStatus = ListingStatus.pending,
-    this.sellerId,
-    this.sellerLocation,
-    this.buyerId,
-    this.buyerLocation,
-    this.paymentStatus = PaymentStatus.pending,
-    DateTime? createdAt,
-    this.updatedAt,
-  }) : createdAt = createdAt ?? DateTime.now();
+    this.listing_id,
+    required this.listing_type,
+    required this.item_name,
+    required this.item_description,
+    required this.item_quantity,
+    required this.item_costperunit,
+    required this.item_image,
+    this.listing_status = ListingStatus.pending,
+    this.seller_id,
+    this.seller_name,
+    this.seller_location,
+    this.buyer_id,
+    this.buyer_name,
+    this.buyer_location,
+    this.payment_status = PaymentStatus.pending,
+    DateTime? created_at,
+    this.updated_at,
+  }) : created_at = created_at ?? DateTime.now();
 
-  // Create a copy of this MarketplaceInfo with modified fields
   MarketplaceInfo copyWith({
-    String? id,
-    ListingType? listingType,
-    String? itemName,
-    String? itemDescription,
-    int? itemQuantity,
-    double? itemCostPerUnit,
-    String? itemImage,
-    ListingStatus? listingStatus,
-    String? sellerId,
-    String? sellerLocation,
-    String? buyerId,
-    String? buyerLocation,
-    PaymentStatus? paymentStatus,
-    DateTime? createdAt,
-    DateTime? updatedAt,
+    String? listing_id,
+    ListingType? listing_type,
+    String? item_name,
+    String? item_description,
+    int? item_quantity,
+    double? item_cost_per_unit,
+    String? item_image,
+    ListingStatus? listing_status,
+    String? seller_id,
+    String? seller_name,
+    GeoPoint? seller_location,
+    String? buyer_id,
+    String? buyer_name,
+    GeoPoint? buyer_location,
+    PaymentStatus? payment_status,
+    DateTime? created_at,
+    DateTime? updated_at,
   }) {
     return MarketplaceInfo(
-      listingId: listingId ?? this.listingId,
-      listingType: listingType ?? this.listingType,
-      itemName: itemName ?? this.itemName,
-      itemDescription: itemDescription ?? this.itemDescription,
-      itemQuantity: itemQuantity ?? this.itemQuantity,
-      itemCostPerUnit: itemCostPerUnit ?? this.itemCostPerUnit,
-      itemImage: itemImage ?? this.itemImage,
-      listingStatus: listingStatus ?? this.listingStatus,
-      sellerId: sellerId ?? this.sellerId,
-      sellerLocation: sellerLocation ?? this.sellerLocation,
-      buyerId: buyerId ?? this.buyerId,
-      buyerLocation: buyerLocation ?? this.buyerLocation,
-      paymentStatus: paymentStatus ?? this.paymentStatus,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
+      listing_id: listing_id ?? this.listing_id,
+      listing_type: listing_type ?? this.listing_type,
+      item_name: item_name ?? this.item_name,
+      item_description: item_description ?? this.item_description,
+      item_quantity: item_quantity ?? this.item_quantity,
+      item_costperunit: item_costperunit ?? item_costperunit,
+      item_image: item_image ?? this.item_image,
+      listing_status: listing_status ?? this.listing_status,
+      seller_id: seller_id ?? this.seller_id,
+      seller_name: seller_name ?? this.seller_name,
+      seller_location: seller_location ?? this.seller_location,
+      buyer_id: buyer_id ?? this.buyer_id,
+      buyer_name: buyer_name ?? this.buyer_name,
+      buyer_location: buyer_location ?? this.buyer_location,
+      payment_status: payment_status ?? this.payment_status,
+      created_at: created_at ?? this.created_at,
+      updated_at: updated_at ?? this.updated_at,
     );
   }
 
-  // Convert ListingType enum to string
-  static String listingTypeToString(ListingType type) {
-    return type.toString().split('.').last;
-  }
+  static String listingTypeToString(ListingType type) =>
+      type.toString().split('.').last;
 
-  // Convert string to ListingType enum
-  static ListingType stringToListingType(String value) {
-    return ListingType.values.firstWhere(
-      (type) => type.toString().split('.').last == value,
-      orElse: () => ListingType.sale,
-    );
-  }
+  static ListingType stringToListingType(String value) =>
+      ListingType.values.firstWhere(
+        (type) => type.toString().split('.').last == value,
+        orElse: () => ListingType.sale,
+      );
 
-  // Convert ListingStatus enum to string
-  static String listingStatusToString(ListingStatus status) {
-    return status.toString().split('.').last;
-  }
+  static String listingStatusToString(ListingStatus status) =>
+      status.toString().split('.').last;
 
-  // Convert string to ListingStatus enum
-  static ListingStatus stringToListingStatus(String value) {
-    return ListingStatus.values.firstWhere(
-      (status) => status.toString().split('.').last == value,
-      orElse: () => ListingStatus.pending,
-    );
-  }
+  static ListingStatus stringToListingStatus(String value) =>
+      ListingStatus.values.firstWhere(
+        (status) => status.toString().split('.').last == value,
+        orElse: () => ListingStatus.pending,
+      );
 
-  // Convert PaymentStatus enum to string
-  static String paymentStatusToString(PaymentStatus status) {
-    return status.toString().split('.').last;
-  }
+  static String paymentStatusToString(PaymentStatus status) =>
+      status.toString().split('.').last;
 
-  // Convert string to PaymentStatus enum
-  static PaymentStatus stringToPaymentStatus(String value) {
-    return PaymentStatus.values.firstWhere(
-      (status) => status.toString().split('.').last == value,
-      orElse: () => PaymentStatus.pending,
-    );
-  }
+  static PaymentStatus stringToPaymentStatus(String value) =>
+      PaymentStatus.values.firstWhere(
+        (status) => status.toString().split('.').last == value,
+        orElse: () => PaymentStatus.pending,
+      );
 
-  // Create a MarketplaceInfo from a Firestore document
   factory MarketplaceInfo.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data()!;
-    
     return MarketplaceInfo(
-      listingId: doc.id,
-      listingType: stringToListingType(data['listingType'] ?? 'sale'),
-      itemName: data['itemName'] ?? '',
-      itemDescription: data['itemDescription'] ?? '',
-      itemQuantity: data['itemQuantity'] ?? 0,
-      itemCostPerUnit: (data['itemCostPerUnit'] is int)
-          ? (data['itemCostPerUnit'] as int).toDouble()
-          : data['itemCostPerUnit']?.toDouble() ?? 0.0,
-      itemImage: data['itemImage'] ?? '',
-      listingStatus: stringToListingStatus(data['listingStatus'] ?? 'pending'),
-      sellerId: data['sellerId'],
-      sellerLocation: data['sellerLocation'],
-      buyerId: data['buyerId'],
-      buyerLocation: data['buyerLocation'],
-      paymentStatus: stringToPaymentStatus(data['paymentStatus'] ?? 'pending'),
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
+      listing_id: doc.id,
+      listing_type: stringToListingType(data['listing_type'] ?? 'sale'),
+      item_name: data['item_name'] ?? '',
+      item_description: data['item_description'] ?? '',
+      item_quantity: data['item_quantity'] ?? 0,
+      item_costperunit: (data['item_cost_per_unit'] is int)
+          ? (data['item_cost_per_unit'] as int).toDouble()
+          : data['item_cost_per_unit']?.toDouble() ?? 0.0,
+      item_image: data['item_image'] ?? '',
+      listing_status: stringToListingStatus(data['listing_status'] ?? 'pending'),
+      seller_id: data['seller_id'],
+      seller_name: data['seller_name'],
+      seller_location: data['seller_location'],
+      buyer_id: data['buyer_id'],
+      buyer_name: data['buyer_name'],
+      buyer_location: data['buyer_location'],
+      payment_status: stringToPaymentStatus(data['payment_status'] ?? 'pending'),
+      created_at: (data['created_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updated_at: (data['updated_at'] as Timestamp?)?.toDate(),
     );
   }
 
-  // Convert this MarketplaceInfo to a Map for Firestore
   Map<String, dynamic> toFirestore() {
     return {
-      'listingType': listingTypeToString(listingType),
-      'itemName': itemName,
-      'itemDescription': itemDescription,
-      'itemQuantity': itemQuantity,
-      'itemCostPerUnit': itemCostPerUnit,
-      'itemImage': itemImage,
-      'listingStatus': listingStatusToString(listingStatus),
-      'sellerId': sellerId,
-      'sellerLocation': sellerLocation,
-      'buyerId': buyerId,
-      'buyerLocation': buyerLocation,
-      'paymentStatus': paymentStatusToString(paymentStatus),
-      'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
+      'listing_type': listingTypeToString(listing_type),
+      'item_name': item_name,
+      'item_description': item_description,
+      'item_quantity': item_quantity,
+      'item_cost_per_unit': item_costperunit,
+      'item_image': item_image,
+      'listing_status': listingStatusToString(listing_status),
+      'seller_id': seller_id,
+      'seller_name': seller_name,
+      'seller_location': seller_location,
+      'buyer_id': buyer_id,
+      'buyer_name': buyer_name,
+      'buyer_location': buyer_location,
+      'payment_status': paymentStatusToString(payment_status),
+      'created_at': Timestamp.fromDate(created_at),
+      'updated_at': updated_at != null ? Timestamp.fromDate(updated_at!) : null,
     };
   }
 
-  // Create an empty sale listing (useful for forms)
-  factory MarketplaceInfo.emptySale({String? sellerId, String? sellerLocation}) {
+  factory MarketplaceInfo.emptySale({String? seller_id, String? seller_location}) {
     return MarketplaceInfo(
-      listingType: ListingType.sale,
-      itemName: '',
-      itemDescription: '',
-      itemQuantity: 0,
-      itemCostPerUnit: 0.0,
-      itemImage: '',
-      sellerId: sellerId,
-      sellerLocation: sellerLocation,
+      listing_type: ListingType.sale,
+      item_name: '',
+      item_description: '',
+      item_quantity: 0,
+      item_costperunit: 0.0,
+      item_image: '',
+      seller_id: seller_id,
+      seller_location: seller_location != null
+          ? GeoPoint(
+              double.parse(seller_location.split(',')[0]),
+              double.parse(seller_location.split(',')[1]),
+            )
+          : null,
     );
   }
 
-  // Create an empty request listing (useful for forms)
-  factory MarketplaceInfo.emptyRequest({String? buyerId, String? buyerLocation}) {
+  factory MarketplaceInfo.emptyRequest({String? buyer_id, String? buyer_location}) {
     return MarketplaceInfo(
-      listingType: ListingType.request,
-      itemName: '',
-      itemDescription: '',
-      itemQuantity: 0,
-      itemCostPerUnit: 0.0,
-      itemImage: '',
-      buyerId: buyerId,
-      buyerLocation: buyerLocation,
+      listing_type: ListingType.request,
+      item_name: '',
+      item_description: '',
+      item_quantity: 0,
+      item_costperunit: 0.0,
+      item_image: '',
+      buyer_id: buyer_id,
+      buyer_location: buyer_location != null
+          ? GeoPoint(
+              double.parse(buyer_location.split(',')[0]),
+              double.parse(buyer_location.split(',')[1]),
+            )
+          : null,
     );
   }
 
-  // Create a sale listing from an inventory item
-  factory MarketplaceInfo.fromInventoryItem({
-    required InventoryInfo item,
-    required String sellerId,
-    required String sellerLocation,
-    int? quantity,
-  }) {
-    return MarketplaceInfo(
-      listingType: ListingType.sale,
-      itemName: item.itemName,
-      itemDescription: item.itemDescription,
-      itemQuantity: quantity ?? item.itemQuantity,
-      itemCostPerUnit: item.itemCostPerUnit,
-      itemImage: item.itemImage,
-      sellerId: sellerId,
-      sellerLocation: sellerLocation,
-    );
-  }
+  double get total_value => item_quantity * item_costperunit;
 
-  // Calculate the total value of this listing
-  double get totalValue => itemQuantity * itemCostPerUnit;
+  bool get is_sale => listing_type == ListingType.sale;
 
-  // Check if this listing is a sale
-  bool get isSale => listingType == ListingType.sale;
+  bool get is_request => listing_type == ListingType.request;
 
-  // Check if this listing is a request
-  bool get isRequest => listingType == ListingType.request;
+  bool get is_completed => listing_status == ListingStatus.done;
 
-  // Check if this listing is completed
-  bool get isCompleted => listingStatus == ListingStatus.done;
+  bool get is_paid => payment_status == PaymentStatus.paid;
 
-  // Check if this listing is paid
-  bool get isPaid => paymentStatus == PaymentStatus.paid;
-
-  // For debugging purposes
   @override
   String toString() {
-    return 'MarketplaceInfo(id: $listingId, type: $listingType, name: $itemName, quantity: $itemQuantity, cost: $itemCostPerUnit, status: $listingStatus)';
+    return 'MarketplaceInfo(id: $listing_id, type: $listing_type, name: $item_name, quantity: $item_quantity, cost: $item_costperunit, status: $listing_status)';
   }
 
-  // For comparison in lists, etc.
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    
+
     return other is MarketplaceInfo &&
-        other.listingId == listingId &&
-        other.listingType == listingType &&
-        other.itemName == itemName &&
-        other.itemDescription == itemDescription &&
-        other.itemQuantity == itemQuantity &&
-        other.itemCostPerUnit == itemCostPerUnit &&
-        other.itemImage == itemImage &&
-        other.listingStatus == listingStatus &&
-        other.sellerId == sellerId &&
-        other.sellerLocation == sellerLocation &&
-        other.buyerId == buyerId &&
-        other.buyerLocation == buyerLocation &&
-        other.paymentStatus == paymentStatus;
+        other.listing_id == listing_id &&
+        other.listing_type == listing_type &&
+        other.item_name == item_name &&
+        other.item_description == item_description &&
+        other.item_quantity == item_quantity &&
+        other.item_costperunit == item_costperunit &&
+        other.item_image == item_image &&
+        other.listing_status == listing_status &&
+        other.seller_id == seller_id &&
+        other.seller_name == seller_name &&
+        other.seller_location == seller_location &&
+        other.buyer_id == buyer_id &&
+        other.buyer_name == buyer_name &&
+        other.buyer_location == buyer_location &&
+        other.payment_status == payment_status;
   }
 
   @override
   int get hashCode {
-    return listingId.hashCode ^
-        listingType.hashCode ^
-        itemName.hashCode ^
-        itemDescription.hashCode ^
-        itemQuantity.hashCode ^
-        itemCostPerUnit.hashCode ^
-        itemImage.hashCode ^
-        listingStatus.hashCode ^
-        sellerId.hashCode ^
-        sellerLocation.hashCode ^
-        buyerId.hashCode ^
-        buyerLocation.hashCode ^
-        paymentStatus.hashCode;
+    return listing_id.hashCode ^
+        listing_type.hashCode ^
+        item_name.hashCode ^
+        item_description.hashCode ^
+        item_quantity.hashCode ^
+        item_costperunit.hashCode ^
+        item_image.hashCode ^
+        listing_status.hashCode ^
+        seller_id.hashCode ^
+        seller_name.hashCode ^
+        seller_location.hashCode ^
+        buyer_id.hashCode ^
+        buyer_name.hashCode ^
+        buyer_location.hashCode ^
+        payment_status.hashCode;
   }
 }

@@ -4,13 +4,14 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:workshop_management_system/modules/inventory/models/InventoryInfo.dart';
-import 'package:workshop_management_system/modules/inventory/services/inventory.model.dart';
+import 'package:workshop_management_system/modules/inventory/providers/InventoryController.dart';
+
 import 'package:workshop_management_system/routes/route.dart';
 
 class EditInventoryPage extends StatefulWidget {
-  final InventoryInfo item;
-  
-  const EditInventoryPage({Key? key, required this.item}) : super(key: key);
+  final InventoryInfo item;  //Get the inventory item details to edit
+
+  const EditInventoryPage({super.key, required this.item});
 
   @override
   _EditInventoryPageState createState() => _EditInventoryPageState();
@@ -18,32 +19,38 @@ class EditInventoryPage extends StatefulWidget {
 
 class _EditInventoryPageState extends State<EditInventoryPage> {
   final _formKey = GlobalKey<FormState>();
-  final InventoryService _inventoryService = InventoryService();
-  
+  final InventoryController inventoryController = InventoryController();
+
   // Text controllers
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
   late TextEditingController _quantityController;
   late TextEditingController _costController;
-  
+
   // Image related variables
   File? _imageFile;
   String? _currentImageUrl;
   bool _isImageChanged = false;
   bool _isUploading = false;
-  
+
   @override
   void initState() {
     super.initState();
-    
-    // Initialize controllers with existing data
-    _nameController = TextEditingController(text: widget.item.itemName);
-    _descriptionController = TextEditingController(text: widget.item.itemDescription);
-    _quantityController = TextEditingController(text: widget.item.itemQuantity.toString());
-    _costController = TextEditingController(text: widget.item.itemCostPerUnit.toString());
-    _currentImageUrl = widget.item.itemImage;
+
+    // Fill edit text fields with existing data
+    _nameController = TextEditingController(text: widget.item.item_name);
+    _descriptionController = TextEditingController(
+      text: widget.item.item_description,
+    );
+    _quantityController = TextEditingController(
+      text: widget.item.item_quantity.toString(),
+    );
+    _costController = TextEditingController(
+      text: widget.item.item_costperunit.toString(),
+    );
+    _currentImageUrl = widget.item.item_image;
   }
-  
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -52,14 +59,14 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
     _costController.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: const Text(
-          'Edit Inventory Item',
+          'Edit Inventory Item',   //Title
           style: TextStyle(color: Colors.white),
         ),
         backgroundColor: Colors.indigo[500],
@@ -82,42 +89,60 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Image picker section
+                  // Upload image section
                   Center(
-                    child: Stack(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Container(
-                          width: 150,
-                          height: 150,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: _buildImageWidget(),
+                        Stack(
+                          children: [
+                            Container(
+                              width: 150,
+                              height: 150,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child:
+                                  _buildImageWidget(), 
+                            ),
+                            Positioned(
+                              right: 0,
+                              bottom: 0,
+                              child: FloatingActionButton(
+                                mini: true,
+                                backgroundColor: Colors.indigo[500],
+                                onPressed: _pickImage,
+                                child: const Icon(
+                                  Icons.add,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        Positioned(
-                          right: 0,
-                          bottom: 0,
-                          child: FloatingActionButton(
-                            mini: true,
-                            backgroundColor: Colors.indigo[500],
-                            onPressed: _pickImage,
-                            child: const Icon(Icons.add, color: Colors.white),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Add Image (Optional)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                            fontStyle: FontStyle.italic,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  
-                  // Text field to input itemName (Required)
+
+                  // Text field to input item_name (Required)
                   const Text(
-                    'Item Name *',
+                    'Item Name *',   
                     style: TextStyle(fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _nameController,
+                    keyboardType: TextInputType.text,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.symmetric(
@@ -133,8 +158,8 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  
-                  // Text field to edit itemDescription (Not Required)
+
+                  // Text field to edit item_description (Not Required)
                   const Text(
                     'Description',
                     style: TextStyle(fontWeight: FontWeight.w500),
@@ -142,6 +167,7 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _descriptionController,
+                    keyboardType: TextInputType.text,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.symmetric(
@@ -151,9 +177,9 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
-                  // Text fields to edit itemQuantity and itemCostPerUnit (Required)
-                  // For edit: itemQuantity can be 0, cannot <0
+
+                  // Text fields to edit item_quantity and item_costperunit (Required)
+                  // For edit: item_quantity can be 0, cannot <0
                   Row(
                     children: [
                       Expanded(
@@ -180,7 +206,7 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Required';  // Return inline error message when value = null
+                                  return 'Required'; // Return inline error message when value = null
                                 }
                                 if (int.parse(value) < 0) {
                                   return 'Invalid Quantity'; // Return inline error message when value < 0
@@ -203,9 +229,10 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
                             const SizedBox(height: 8),
                             TextFormField(
                               controller: _costController,
-                              keyboardType: const TextInputType.numberWithOptions(
-                                decimal: true,
-                              ),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
                               inputFormatters: [
                                 FilteringTextInputFormatter.allow(
                                   RegExp(r'^\d+\.?\d{0,2}'),
@@ -220,9 +247,10 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Required';  // Return inline error message when value = null
+                                  return 'Required'; // Return inline error message when value = null
                                 }
-                                if (double.tryParse(value) == null || double.parse(value) <= 0) {
+                                if (double.tryParse(value) == null ||
+                                    double.parse(value) <= 0) {
                                   return 'Invalid Cost'; // Return inline error message when value <= 0
                                 }
                                 return null;
@@ -234,10 +262,10 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Update button
                   ElevatedButton(
-                    onPressed: _isUploading ? null : _updateItem,
+                    onPressed: _isUploading ? null : updateItem,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.indigo[500],
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -249,19 +277,20 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: _isUploading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
+                    child:
+                        _isUploading
+                            ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                            : const Text(
+                              'Update',
+                              style: TextStyle(color: Colors.white),
                             ),
-                          )
-                        : const Text(
-                            'Update',
-                            style: TextStyle(color: Colors.white),
-                          ),
                   ),
                 ],
               ),
@@ -278,10 +307,7 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
       // Show new selected image file
       return ClipRRect(
         borderRadius: BorderRadius.circular(8),
-        child: Image.file(
-          _imageFile!,
-          fit: BoxFit.cover,
-        ),
+        child: Image.file(_imageFile!, fit: BoxFit.cover),
       );
     } else if (_currentImageUrl != null && _currentImageUrl!.isNotEmpty) {
       // Show existing image from URL
@@ -294,37 +320,30 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
             if (loadingProgress == null) return child;
             return Center(
               child: CircularProgressIndicator(
-                value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded / 
-                      loadingProgress.expectedTotalBytes!
-                    : null,
+                value:
+                    loadingProgress.expectedTotalBytes != null
+                        ? loadingProgress.cumulativeBytesLoaded /
+                            loadingProgress.expectedTotalBytes!
+                        : null,
               ),
             );
           },
           errorBuilder: (context, error, stackTrace) {
-            return const Icon(
-              Icons.broken_image,
-              size: 50,
-              color: Colors.grey,
-            );
+            return const Icon(Icons.broken_image, size: 50, color: Colors.grey);
           },
         ),
       );
     } else {
       // Show placeholder
-      return const Icon(
-        Icons.camera_alt,
-        size: 50,
-        color: Colors.grey,
-      );
+      return const Icon(Icons.camera_alt, size: 50, color: Colors.grey);
     }
   }
 
   // Pick image from gallery or camera
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
-    
-    // Show image source selection dialog
+
+   
     showModalBottomSheet(
       context: context,
       builder: (BuildContext context) {
@@ -368,7 +387,10 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
               if (_currentImageUrl != null && _currentImageUrl!.isNotEmpty)
                 ListTile(
                   leading: const Icon(Icons.delete, color: Colors.red),
-                  title: const Text('Remove Image', style: TextStyle(color: Colors.red)),
+                  title: const Text(
+                    'Remove Image',
+                    style: TextStyle(color: Colors.red),
+                  ),
                   onTap: () {
                     Navigator.pop(context);
                     setState(() {
@@ -388,19 +410,19 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
   // Upload image to Firebase Storage
   Future<String?> _uploadImage() async {
     if (_imageFile == null) return _currentImageUrl;
-    
+
     try {
       final storageRef = FirebaseStorage.instance
           .ref()
           .child('inventory_images')
           .child('${DateTime.now().millisecondsSinceEpoch}.jpg');
-          
+
       final uploadTask = storageRef.putFile(_imageFile!);
       final snapshot = await uploadTask;
-      
+
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
-      //print('Error uploading image: $e');
+     
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error uploading image: ${e.toString()}')),
       );
@@ -409,38 +431,41 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
   }
 
   // Update inventory item
-  void _updateItem() async {
+  void updateItem() async {
     if (_formKey.currentState!.validate()) {
       // Start loading
       setState(() {
         _isUploading = true;
       });
-      
+
       try {
         String? imageUrl = _currentImageUrl;
-        
+
         // Upload new image if changed
         if (_isImageChanged && _imageFile != null) {
           imageUrl = await _uploadImage();
         }
-        
+
         // Create updated inventory item
         final updatedItem = widget.item.copyWith(
-          itemName: _nameController.text.trim(),
-          itemDescription: _descriptionController.text.trim(),
-          itemQuantity: int.parse(_quantityController.text),
-          itemCostPerUnit: double.parse(_costController.text),
-          itemImage: imageUrl ?? '',
+          item_name: _nameController.text.trim(),
+          item_description: _descriptionController.text.trim(),
+          item_quantity: int.parse(_quantityController.text),
+          item_costperunit: double.parse(_costController.text),
+          item_image: imageUrl ?? '',
+          updated_at: DateTime.now(),
         );
-        
-        // Save to Firestore
-        await _inventoryService.updateInventoryItem(updatedItem);
-        
-        // Navigate back with success message
+
+        // Update to InventoryInfo
+        await inventoryController.editInventoryItem(updatedItem);
+
+        //Display success message
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Inventory item updated successfully'), //Display Success message
+              content: Text(
+                'Inventory item updated successfully',
+              ), //Display Success message
               duration: Duration(seconds: 2),
               backgroundColor: Colors.green,
             ),
@@ -451,9 +476,12 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
         //print('Error updating inventory item: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error updating inventory item: ${e.toString()}'), //Display error message
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 2),
+            SnackBar(
+              content: Text(
+                'Error updating inventory item: ${e.toString()}',
+              ), //Display error message
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
             ),
           );
         }

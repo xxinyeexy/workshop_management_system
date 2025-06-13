@@ -39,6 +39,19 @@ dependencies:
   
   # Image handling
   image_picker: ^1.0.4
+
+  # Geolocator
+  geolocator: ^9.0.2
+
+  #Permission handling
+  permission_handler: ^11.0.1
+  shared_preferences: ^2.5.3
+
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  provider: ^6.0.5
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8

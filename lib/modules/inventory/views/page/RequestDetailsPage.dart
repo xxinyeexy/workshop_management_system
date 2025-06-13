@@ -1,47 +1,76 @@
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
 import '../../models/MarketplaceInfo.dart';
-import '../../services/marketplace.model.dart';
-import 'package:workshop_management_system/routes/route.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:workshop_management_system/modules/inventory/providers/InventoryController.dart';
+import 'package:workshop_management_system/modules/inventory/models/InventoryInfo.dart'; // Add this import if InventoryInfo exists
+
+import 'package:geolocator/geolocator.dart';
+
 
 class RequestDetailsPage extends StatefulWidget {
-  final MarketplaceInfo requestItem;
+  final MarketplaceInfo request_item;
+  final GeoPoint? user_geo_point;
 
-  const RequestDetailsPage({
-    Key? key, 
-    required this.requestItem,
-  }) : super(key: key);
+  const RequestDetailsPage({super.key, 
+    
+    required this.request_item,
+    this.user_geo_point,
+  });
 
   @override
   _RequestDetailsPageState createState() => _RequestDetailsPageState();
 }
 
 class _RequestDetailsPageState extends State<RequestDetailsPage> {
-  final MarketplaceService _marketplaceService = MarketplaceService();
+    final InventoryController inventoryController = InventoryController();
+
   bool _isProcessing = false;
   int _quantity = 1;
+  late int current_user_id;
 
   @override
   void initState() {
     super.initState();
-    _quantity = widget.requestItem.itemQuantity > 0 ? widget.requestItem.itemQuantity : 1;
+    Hive.openBox('user');
+    current_user_id = Hive.box('user').get('user_id') ?? 0;
+    _quantity = widget.request_item.item_quantity > 0 ? widget.request_item.item_quantity : 1;
   }
 
-  double get _totalCost => _quantity * widget.requestItem.itemCostPerUnit;
+  double get _totalCost => _quantity * widget.request_item.item_costperunit;
 
-  void _cancelRequest() {
+  void cancelRequest() {
     Navigator.pop(context);
   }
 
-  void _proceedToPayment() async {
+  void proceedToPayment() async {
+    
     setState(() {
       _isProcessing = true;
     });
 
-    try {
-      // Simulate payment processing
-      await Future.delayed(const Duration(seconds: 2));
-      
-      // Here you would typically process the payment and update the request status
+    
+      try {
+      // Get current inventory info
+      final InventoryInfo? inv = 
+          await inventoryController.getInventoryInfo(widget.request_item.listing_id!);
+
+      // Calculate new quantity
+      final int newQuantity = (inv?.item_quantity ?? 0) + _quantity;
+
+      // Update inventory quantity
+      await inventoryController.updateInventoryQuantity(
+        widget.request_item.listing_id!,
+        newQuantity,
+      );
+
+      // Complete the listing by updating the payment status, listing status and buyer details
+      await inventoryController.completeRequestListing(
+        widget.request_item.listing_id!,
+        current_user_id,
+        widget.user_geo_point,
+      );
+    
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -73,13 +102,14 @@ class _RequestDetailsPageState extends State<RequestDetailsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: const Text(
           'Request Details',
           style: TextStyle(color: Colors.white),
         ),
-        backgroundColor: Colors.blue[600],
+        backgroundColor: Colors.indigo[500],
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -105,11 +135,11 @@ class _RequestDetailsPageState extends State<RequestDetailsPage> {
                       color: Colors.grey[300],
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: widget.requestItem.itemImage.isNotEmpty
+                    child: ((widget.request_item.item_image ?? '').isNotEmpty)
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(4),
                             child: Image.network(
-                              widget.requestItem.itemImage,
+                              widget.request_item.item_image ?? '',
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
                                 return const Icon(
@@ -133,15 +163,16 @@ class _RequestDetailsPageState extends State<RequestDetailsPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          widget.requestItem.itemName,
+                          widget.request_item.item_name,
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                       
                         const SizedBox(height: 4),
                         Text(
-                          'From: ${widget.requestItem.sellerLocation}',
+                          'From: ${widget.request_item.seller_name}',
                           style: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 14,
@@ -183,7 +214,7 @@ class _RequestDetailsPageState extends State<RequestDetailsPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    widget.requestItem.sellerLocation ?? 'Not specified',
+                    'Workshop Name: ${widget.request_item.seller_name ?? 'Unknown Workshop'}',
                     style: const TextStyle(fontSize: 14),
                   ),
                   const Text(
@@ -234,7 +265,7 @@ class _RequestDetailsPageState extends State<RequestDetailsPage> {
                         style: TextStyle(fontSize: 16),
                       ),
                       Text(
-                        'RM ${widget.requestItem.itemCostPerUnit.toStringAsFixed(2)}',
+                        'RM ${widget.request_item.item_costperunit.toStringAsFixed(2)}',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -258,7 +289,7 @@ class _RequestDetailsPageState extends State<RequestDetailsPage> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Colors.blue[700],
+                          color: Colors.indigo[500],
                         ),
                       ),
                     ],
@@ -277,7 +308,7 @@ class _RequestDetailsPageState extends State<RequestDetailsPage> {
                   // Cancel Button
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: _isProcessing ? null : _cancelRequest,
+                      onPressed: _isProcessing ? null : cancelRequest,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.grey[200],
                         foregroundColor: Colors.black87,
@@ -297,9 +328,9 @@ class _RequestDetailsPageState extends State<RequestDetailsPage> {
                     child: ElevatedButton(
                       onPressed: _isProcessing 
                           ? null 
-                          : () => _proceedToPayment(),
+                          : () => proceedToPayment(),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue[600],
+                        backgroundColor: Colors.indigo[500],
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(

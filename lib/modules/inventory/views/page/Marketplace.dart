@@ -1,77 +1,108 @@
-// lib/screens/Marketplace.dart
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'MarketplaceSaleListingPage.dart';
 import 'MarketplaceRequestListingPage.dart';
 import 'package:workshop_management_system/routes/route.dart';
+import 'package:workshop_management_system/widgets/menu.dart';
+import 'package:workshop_management_system/modules/inventory/providers/InventoryController.dart';
+
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 
 class Marketplace extends StatefulWidget {
-  const Marketplace({Key? key}) : super(key: key);
+  const Marketplace({super.key});
 
   @override
   _MarketplaceState createState() => _MarketplaceState();
 }
 
-class _MarketplaceState extends State<Marketplace> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _MarketplaceState extends State<Marketplace>
+    with SingleTickerProviderStateMixin {
+  late TabController _tab_controller;
+    final InventoryController inventoryController = InventoryController();
+
+  final GlobalKey<ScaffoldState> _scaffold_key = GlobalKey<ScaffoldState>();
+
+  // Location variables
+  Position? user_location;
+  GeoPoint? user_geo_point;
+  final bool _has_shown_location_dialog = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tab_controller = TabController(length: 2, vsync: this);
+    
+
+    // Check and show location permission dialog only once
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      inventoryController.askPermissionLocation(context);
+    });
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _tab_controller.dispose();
     super.dispose();
   }
+
+  
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffold_key,
+      drawer: const AppDrawer(
+        userName: 'John Smith', //owner_name
+        userRole: 'Workshop Owner', //owner_role
+      ),
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text(
-          'Marketplace',
-          style: TextStyle(color: Colors.white),
-        ),
+        title: const Text('Marketplace', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.indigo[500],
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.menu, color: Colors.white),
-          onPressed: () {
-            Scaffold.of(context).openDrawer();
-          },
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: Colors.white),
+            onPressed: () {
+              Scaffold.of(context).openDrawer();
+            },
+          ),
         ),
         bottom: TabBar(
-          controller: _tabController,
+          controller: _tab_controller,
           indicatorColor: Colors.white,
           indicatorWeight: 3,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
-          tabs: const [
-            Tab(text: 'Sell'),
-            Tab(text: 'Requests'),
-          ],
+          indicator: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: Colors.white, width: 3)),
+          ),
+          labelStyle: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.normal,
+          ),
+          tabs: const [Tab(text: 'Sell'), Tab(text: 'Requests')],   //Sell for MarketplaceSaleListingPage, Requests for MarketplaceRequestListingPage
         ),
       ),
       body: TabBarView(
-        controller: _tabController,
-        children: const [
-          MarketplaceSaleListingPage(),  //display this tab as default
-          MarketplaceRequestListingPage(), 
+        controller: _tab_controller,
+        children: [
+          MarketplaceSaleListingPage(user_geo_point: user_geo_point),   //Pass user_geo_point to the tab
+          MarketplaceRequestListingPage(user_geo_point: user_geo_point),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.indigo[400],
         onPressed: () {
-          if (_tabController.index == 0) {
-            // Navigate to sell form
-            AppRouter.navigateTo(context, AppRoutes.sellForm);
-          } else {
-            // Navigate to request form
-            AppRouter.navigateTo(context, AppRoutes.requestForm);
+          if (_tab_controller.index == 0) { navigateToSellForm(){
+            AppRouter.navigateTo(context, AppRoutes.sellForm, arguments: user_geo_point);  } //Navigate to Sell Form
+          } else { navigateToRequestForm(){
+            AppRouter.navigateTo(context, AppRoutes.requestForm, arguments: user_geo_point); } //Navigate to Request Form
           }
         },
         child: const Icon(Icons.add, color: Colors.white),
