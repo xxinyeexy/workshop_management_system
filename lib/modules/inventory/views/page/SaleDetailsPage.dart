@@ -37,7 +37,7 @@ class _SaleDetailsPageState extends State<SaleDetailsPage> {
   @override
   void initState() {
     super.initState();
-    Hive.openBox('user'); //Open user box to get user_id
+    Hive.openBox('user');
     current_user_id = Hive.box('user').get('user_id') ?? 0;
     
   }
