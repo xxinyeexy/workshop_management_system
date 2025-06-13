@@ -67,7 +67,12 @@ class _TasksPageState extends State<TasksPage> {
         ),
       ),
       body: tasks.isEmpty
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+            child: Text(
+              'No task records found',
+              style: TextStyle(fontSize: 16),
+            ),
+          )
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: tasks.length,
