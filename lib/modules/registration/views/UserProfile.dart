@@ -136,9 +136,13 @@ class _UserProfilePageState extends State<UserProfilePage> {
       final userRef = FirebaseFirestore.instance
           .collection('users')
           .doc(_userId);
+      final prevUserSnapshot = await userRef.get();
+      final prevFullName = prevUserSnapshot['fullName'] ?? '';
+
+      final newFullName = _fullNameController.text;
 
       final Map<String, dynamic> updateData = {
-        'fullName': _fullNameController.text,
+        'fullName': newFullName,
         'email': _emailController.text,
         'phoneNumber': _phoneNumberController.text,
         'role': _userRole, // Ensure role is saved
@@ -147,6 +151,28 @@ class _UserProfilePageState extends State<UserProfilePage> {
       if (_userRole.toLowerCase() == 'workshop_owner') {
         updateData['workshopName'] = _workshopNameController.text;
         updateData['workshopAddress'] = _workshopAddressController.text;
+
+        // 🔁 Step 1: Update tasks where ownerId == currentUser.uid
+        final tasksQuery = await FirebaseFirestore.instance
+            .collection('tasks')
+            .where('ownerId', isEqualTo: _userId)
+            .get();
+
+        for (var doc in tasksQuery.docs) {
+          await doc.reference.update({'workshopName': newFullName});
+        }
+
+        // 🔁 Step 2: Update foremen users whose workshopName == prev full name
+        final usersQuery = await FirebaseFirestore.instance
+            .collection('users')
+            .where('role', isEqualTo: 'foreman')
+            .where('workshopName', isEqualTo: prevFullName)
+            .get();
+
+        for (var doc in usersQuery.docs) {
+          await doc.reference.update({'workshopName': newFullName});
+        }
+
       } else if (_userRole.toLowerCase() == 'foreman') {
         updateData['bankName'] = _bankNameController.text;
         updateData['accountNumber'] = _accountNumberController.text;

@@ -130,7 +130,11 @@ class _ScheduleState extends State<Schedule> {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const BlankSchedulePage()),
+            MaterialPageRoute(builder: (_) => const BlankSchedulePage(
+              userRole: 'foreman',
+              userName: 'John Doe',
+              userPosition: 'Supervisor',
+            )),
           );
         });
       } else {
@@ -400,7 +404,11 @@ class _ScheduleState extends State<Schedule> {
         // ✅ Navigate to blank schedule screen after clearing workshop
         if (mounted) {
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const BlankSchedulePage()),
+            MaterialPageRoute(builder: (_) => const BlankSchedulePage(
+              userRole: 'foreman',
+              userName: 'John Doe',
+              userPosition: 'Supervisor',
+                    )),
           );
         }
       } else {
