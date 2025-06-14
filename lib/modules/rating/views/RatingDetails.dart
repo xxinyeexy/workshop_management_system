@@ -411,8 +411,11 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
                     children: List.generate(
                       5,
                       (index) => Icon(
-                        index < averageRating.round()
+                        index < averageRating.floor()
                             ? Icons.star
+                            : (index < averageRating.ceil() &&
+                                averageRating % 1 != 0)
+                            ? Icons.star_half
                             : Icons.star_border,
                         size: 20,
                         color: Colors.orange,
