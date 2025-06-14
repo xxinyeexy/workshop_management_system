@@ -696,9 +696,6 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
         ),
         backgroundColor: primaryColor,
         iconTheme: const IconThemeData(color: Colors.white),
-        actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshData),
-        ],
       ),
       body: RefreshIndicator(
         onRefresh: _refreshData,
