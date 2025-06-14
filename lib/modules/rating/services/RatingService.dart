@@ -2,7 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class FirebaseRatingService {
-  static final FirebaseRatingService _instance = FirebaseRatingService._internal();
+  static final FirebaseRatingService _instance =
+      FirebaseRatingService._internal();
   factory FirebaseRatingService() => _instance;
   FirebaseRatingService._internal();
 
@@ -74,11 +75,12 @@ class FirebaseRatingService {
   // Get all ratings submitted by a user
   Future<List<Map<String, dynamic>>> getUserRatings(String userId) async {
     try {
-      final querySnapshot = await _firestore
-          .collection(_ratingsCollection)
-          .where('raterUserId', isEqualTo: userId)
-          .orderBy('timestamp', descending: true)
-          .get();
+      final querySnapshot =
+          await _firestore
+              .collection(_ratingsCollection)
+              .where('raterUserId', isEqualTo: userId)
+              .orderBy('timestamp', descending: true)
+              .get();
 
       return querySnapshot.docs.map((doc) {
         final data = doc.data();
@@ -93,11 +95,12 @@ class FirebaseRatingService {
   // Get all ratings received by a user
   Future<List<Map<String, dynamic>>> getRatingsForUser(String userId) async {
     try {
-      final querySnapshot = await _firestore
-          .collection(_ratingsCollection)
-          .where('ratedUserId', isEqualTo: userId)
-          .orderBy('timestamp', descending: true)
-          .get();
+      final querySnapshot =
+          await _firestore
+              .collection(_ratingsCollection)
+              .where('ratedUserId', isEqualTo: userId)
+              .orderBy('timestamp', descending: true)
+              .get();
 
       return querySnapshot.docs.map((doc) {
         final data = doc.data();
@@ -145,11 +148,12 @@ class FirebaseRatingService {
   // Get pending ratings for a user
   Future<List<Map<String, dynamic>>> getPendingRatings(String userId) async {
     try {
-      final querySnapshot = await _firestore
-          .collection(_pendingRatingsCollection)
-          .where('raterUserId', isEqualTo: userId)
-          .orderBy('timestamp', descending: true)
-          .get();
+      final querySnapshot =
+          await _firestore
+              .collection(_pendingRatingsCollection)
+              .where('raterUserId', isEqualTo: userId)
+              .orderBy('timestamp', descending: true)
+              .get();
 
       return querySnapshot.docs.map((doc) {
         final data = doc.data();
@@ -168,7 +172,10 @@ class FirebaseRatingService {
   }
 
   // Remove pending rating
-  Future<void> removePendingRating(String contractId, String raterUserId) async {
+  Future<void> removePendingRating(
+    String contractId,
+    String raterUserId,
+  ) async {
     try {
       await _firestore
           .collection(_pendingRatingsCollection)
@@ -182,10 +189,11 @@ class FirebaseRatingService {
   // Get average rating for a user
   Future<double> getAverageRating(String userId) async {
     try {
-      final querySnapshot = await _firestore
-          .collection(_ratingsCollection)
-          .where('ratedUserId', isEqualTo: userId)
-          .get();
+      final querySnapshot =
+          await _firestore
+              .collection(_ratingsCollection)
+              .where('ratedUserId', isEqualTo: userId)
+              .get();
 
       if (querySnapshot.docs.isEmpty) return 0.0;
 
@@ -203,10 +211,11 @@ class FirebaseRatingService {
   // Get rating count for a user
   Future<int> getRatingCount(String userId) async {
     try {
-      final querySnapshot = await _firestore
-          .collection(_ratingsCollection)
-          .where('ratedUserId', isEqualTo: userId)
-          .get();
+      final querySnapshot =
+          await _firestore
+              .collection(_ratingsCollection)
+              .where('ratedUserId', isEqualTo: userId)
+              .get();
 
       return querySnapshot.docs.length;
     } catch (e) {
