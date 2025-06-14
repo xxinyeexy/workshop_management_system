@@ -1,13 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:workshop_management_system/modules/sidebar.dart';
 
 class BlankSchedulePage extends StatefulWidget {
-  const BlankSchedulePage({super.key});
+  final String userRole;
+  final String userName;
+  final String userPosition;
+
+  const BlankSchedulePage({
+    super.key,
+    required this.userRole,
+    required this.userName,
+    required this.userPosition,
+  });
 
   @override
   State<BlankSchedulePage> createState() => _BlankSchedulePageState();
 }
+
 
 class _BlankSchedulePageState extends State<BlankSchedulePage> {
   final TextEditingController _workshopController = TextEditingController();
@@ -108,12 +119,32 @@ class _BlankSchedulePageState extends State<BlankSchedulePage> {
         title: const Text('Schedule', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.green,
         centerTitle: true,
+        leading: Builder(
+          builder:
+              (context) => IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications, color: Colors.amber),
             onPressed: () {}, // Future feature
           ),
         ],
+      ),
+      drawer: SidebarMenu(
+        userRole:
+            widget.userRole.toLowerCase() == 'foreman'
+                ? UserRole.Foreman
+                : UserRole.WorkshopOwner,
+        userName: widget.userName,
+        userPosition: widget.userPosition,
+        selectedTitle: 'Schedule',
+        originalUserRole: widget.userRole,
+        onSelectedTitleChanged: (title) {
+          // Optional: sync state or navigation logic here
+        },
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),

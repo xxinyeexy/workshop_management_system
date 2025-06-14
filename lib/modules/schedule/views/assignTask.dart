@@ -66,9 +66,17 @@ class _AssignTaskPageState extends State<AssignTaskPage> {
 
   Future<void> _submitTask() async {
     if (!_formKey.currentState!.validate()) return;
+
     if (startTime == null || endTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Start and end time are required")),
+      );
+      return;
+    }
+
+    if (endTime!.isBefore(startTime!)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("End time must be after start time")),
       );
       return;
     }
@@ -103,6 +111,7 @@ class _AssignTaskPageState extends State<AssignTaskPage> {
     setState(() => isSubmitting = false);
     Navigator.pop(context);
   }
+
 
   @override
   Widget build(BuildContext context) {
