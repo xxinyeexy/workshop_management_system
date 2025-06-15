@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:workshop_management_system/modules/inventory/models/MarketplaceInfo.dart';
+import 'package:workshop_management_system/modules/models/MarketplaceInfo.dart';
 
 class MarketplaceService {
   final CollectionReference _marketplaceCollection = FirebaseFirestore.instance.collection('marketplace');

@@ -6,7 +6,7 @@ import 'MarketplaceSaleListingPage.dart';
 import 'MarketplaceRequestListingPage.dart';
 import 'package:workshop_management_system/routes/route.dart';
 import 'package:workshop_management_system/modules/sidebar.dart'; // Import SidebarMenu
-import 'package:workshop_management_system/modules/inventory/providers/InventoryController.dart';
+import 'package:workshop_management_system/provider/InventoryController.dart';
 
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:geolocator/geolocator.dart';

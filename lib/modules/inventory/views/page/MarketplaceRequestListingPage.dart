@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:workshop_management_system/modules/inventory/models/MarketplaceInfo.dart';
-import 'package:workshop_management_system/modules/inventory/providers/InventoryController.dart';
+import 'package:workshop_management_system/modules/models/MarketplaceInfo.dart';
+import 'package:workshop_management_system/provider/InventoryController.dart';
 import 'package:workshop_management_system/modules/sidebar.dart'; // Import SidebarMenu
 import 'package:workshop_management_system/routes/route.dart';
 

@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/InventoryInfo.dart';
+import '../../models/InventoryInfo.dart';
 
 class InventoryService {
   // Reference to the inventory collection in Firestore
