@@ -179,7 +179,7 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
         });
   }
 
-  // OPTIMIZED: Fetch users and ratings in parallel using batching
+  // Fetch users and ratings in parallel using batching
   Future<void> _fetchUsers() async {
     try {
       setState(() {
@@ -271,7 +271,7 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
     }
   }
 
-  // OPTIMIZED: Calculate rating data from pre-fetched data
+  // Calculate rating data from pre-fetched data
   Map<String, dynamic> _calculateRatingData(
     String userId,
     String userName,
