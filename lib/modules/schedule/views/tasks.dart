@@ -89,8 +89,7 @@ class _TasksPageState extends State<TasksPage> {
                           builder: (_) => TaskDetailPage(taskId: task.id, userRole: widget.userRole),
                         ),
                       );
-                      // ✅ Reload tasks after coming back
-                        fetchTasks(); // make sure this re-queries Firestore
+                        fetchTasks();
                     },
                   ),
                 );
