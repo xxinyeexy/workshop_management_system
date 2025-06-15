@@ -85,18 +85,23 @@ class _MarketplaceRequestListingPageState
     );
   }
 
-  Widget buildRequestListingCard(MarketplaceInfo listing) {
-    // Calculate distance if both locations available
-    String? distanceText;
-    if (widget.user_geo_point != null && listing.buyer_location != null) {
+  String? calculateDistance(MarketplaceInfo listing) {
+    if (widget.user_geo_point != null && listing.seller_location != null) {
       double distance = Geolocator.distanceBetween(
         widget.user_geo_point!.latitude,
         widget.user_geo_point!.longitude,
-        listing.buyer_location!.latitude,
-        listing.buyer_location!.longitude,
+        listing.seller_location!.latitude,
+        listing.seller_location!.longitude,
       );
-      distanceText = formatDistance(distance);
+      return formatDistance(distance);
     }
+    return null;
+  }
+
+  Widget buildRequestListingCard(MarketplaceInfo listing) {
+
+     String? distanceText = calculateDistance(listing);
+    
 
     return GestureDetector(
       
@@ -250,7 +255,7 @@ class _MarketplaceRequestListingPageState
     );
   }
 
-  // ✅ ADDED: Distance formatting helper method
+ 
   String formatDistance(double distanceInMeters) {
     if (distanceInMeters < 1000) {
       return '${distanceInMeters.toStringAsFixed(0)} m';
@@ -413,12 +418,14 @@ class _MarketplaceRequestListingPageState
   }
 
   void navigateToRequest(context, MarketplaceInfo listing) {
+     String? distanceText = calculateDistance(listing);
   AppRouter.navigateTo(
     context,
     AppRoutes.requestDetails,
     arguments: {
       'listing': listing,
       'user_geo_point': widget.user_geo_point,
+      'distance': distanceText,
     },
   );
 }

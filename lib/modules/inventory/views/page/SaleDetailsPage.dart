@@ -12,12 +12,14 @@ class SaleDetailsPage extends StatefulWidget {
   final MarketplaceInfo sale_item;
   final GeoPoint? user_geo_point;  //Get user location from marketplace
   final int selected_quantity;
+  final String? distance; 
   
   const SaleDetailsPage({
     super.key,
     required this.sale_item,
     this.user_geo_point,
     required this.selected_quantity,
+    this.distance,
   });
 
   @override
@@ -162,77 +164,77 @@ class _SaleDetailsPageState extends State<SaleDetailsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Item Header
-            Container(
-              padding: const EdgeInsets.all(16),
-              color: Colors.white,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Item image
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: (_sale_item!.item_image != null && _sale_item!.item_image!.isNotEmpty)
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: Image.network(
-                              _sale_item!.item_image ?? '',
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return const Icon(
-                                  Icons.image_not_supported,
-                                  color: Colors.grey,
-                                  size: 40,
-                                );
-                              },
-                            ),
-                          )
-                        : const Icon(
-                            Icons.inventory_2,
-                            color: Colors.grey,
-                            size: 40,
-                          ),
-                  ),
-                  const SizedBox(width: 16),
-                  // Item details
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _sale_item!.item_name,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        
-                        const SizedBox(height: 4),
-                        Text(
-                          'From: ${_sale_item!.seller_name ?? "Unknown seller"}',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 14,
-                          ),
-                        ),
-                        Text(
-                          '(20km distance)',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+    // Item Header
+    Container(
+      padding: const EdgeInsets.all(16),
+      color: Colors.white,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Item image
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(4),
             ),
+            child: (_sale_item!.item_image != null && _sale_item!.item_image!.isNotEmpty)
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: Image.network(
+                      _sale_item!.item_image ?? '',
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(
+                          Icons.image_not_supported,
+                          color: Colors.grey,
+                          size: 40,
+                        );
+                      },
+                    ),
+                  )
+                : const Icon(
+                    Icons.inventory_2,
+                    color: Colors.grey,
+                    size: 40,
+                  ),
+          ),
+          const SizedBox(width: 16),
+          // Item details
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _sale_item!.item_name,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'From: ${_sale_item!.seller_name ?? "Unknown seller"}',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                  ),
+                ),
+                // Use the passed distance instead of hardcoded value
+                Text(
+                  widget.distance != null ? '(${widget.distance})' : '(Distance unavailable)',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
             
             const SizedBox(height: 8),
             

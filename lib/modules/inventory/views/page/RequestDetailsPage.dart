@@ -11,11 +11,13 @@ import 'package:geolocator/geolocator.dart';
 class RequestDetailsPage extends StatefulWidget {
   final MarketplaceInfo request_item;
   final GeoPoint? user_geo_point;
+  final String? distance; 
 
   const RequestDetailsPage({super.key, 
     
     required this.request_item,
     this.user_geo_point,
+    this.distance,
   });
 
   @override

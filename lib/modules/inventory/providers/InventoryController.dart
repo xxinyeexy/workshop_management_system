@@ -133,7 +133,7 @@ Future<String> getCurrentUserId() async {
 
   //Handles Marketplace Operation
   Stream<List<MarketplaceInfo>> getSaleListingsByGeoPoint(GeoPoint userLocation) {
-    const double radiusInKm = 20.0;
+    const double radiusInKm = 100.0;
     return _marketplaceCollection
         .where('listing_type', isEqualTo: 'sale')
         .where('listing_status', isEqualTo: 'pending')
@@ -269,135 +269,82 @@ Future<String> getCurrentUserId() async {
   }
 
   //Ask user location permission
-  Future<void> askPermissionLocation(BuildContext context) async {
-    final box = Hive.box('settings');
+  static Future<bool> checkLocationPermission() async {
+    bool serviceEnabled;
+    LocationPermission permission;
 
-    // Check if dialog has been shown before
-    bool hasShownDialog = box.get('location_dialog_shown', defaultValue: false);
+    // Test if location services are enabled.
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      return false;
+    }
 
-    if (!hasShownDialog) {
-      showLocationPermissionDialog(context);
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return false;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      return false;
+    }
+
+    return true;
+  }
+
+  static Future<Position?> getCurrentLocation() async {
+    try {
+      bool hasPermission = await checkLocationPermission();
+      if (!hasPermission) {
+        return null;
+      }
+
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
+      );
+
+      return position;
+    } catch (e) {
+      print('Error getting location: $e');
+      return null;
     }
   }
 
-  void showLocationPermissionDialog(BuildContext context) {
-    if (_has_shown_location_dialog) return;
-
-    _has_shown_location_dialog = true;
-
-    showDialog(
+  static Future<void> showLocationPermissionDialog(BuildContext context) async {
+    return showDialog<void>(
       context: context,
-      barrierDismissible: false, // Prevent dismissing by tapping outside
+      barrierDismissible: false,
       builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+        return AlertDialog(
+          title: const Text('Location Permission'),
+          content: const Text(
+            'This app needs location access to show nearby workshops and calculate distances. Please enable location permissions.',
           ),
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Location icon
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: Colors.red[100],
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.location_on,
-                    color: Colors.red[600],
-                    size: 30,
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                const Text(
-                  'Allow Location Access',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-
-                const SizedBox(height: 12),
-
-                const Text(
-                  'WorkshopPro needs access to your location to show nearby inventory listings',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
-                    height: 1.4,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-
-                const SizedBox(height: 30),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          handleLocationDenied(context);
-                        },
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          backgroundColor: Colors.grey[200],
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text(
-                          'Deny',
-                          style: TextStyle(
-                            color: Colors.black54,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          handleLocationAllowed(context);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue[600],
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: const Text(
-                          'Allow',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+            TextButton(
+              child: const Text('Settings'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                Geolocator.openAppSettings();
+              },
             ),
-          ),
+            TextButton(
+              child: const Text('Retry'),
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await checkLocationPermission();
+              },
+            ),
+          ],
         );
       },
     );

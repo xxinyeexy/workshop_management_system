@@ -257,7 +257,7 @@ class _SellFormState extends State<SellForm> {
                                         }
                                         if (_selected_inventory_item != null && 
                                             int.parse(value) > _selected_inventory_item!.item_quantity) {
-                                          return 'Insufficient inventory quantity';  // Cannot sell more than available quantity
+                                          return 'Insufficient inventory';  // Cannot sell more than available quantity
                                         }
                                         return null;
                                       },
