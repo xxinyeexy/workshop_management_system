@@ -52,7 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final String userRole = (userDoc['role'] as String?) ?? "workshop owner";
       final String userName = (userDoc['fullName'] as String?) ?? "Unknown";
-      
+
       // Get user position based on role
       String userPosition;
       switch (userRole.toLowerCase()) {
@@ -72,11 +72,12 @@ class _LoginScreenState extends State<LoginScreen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => Schedule(
-            userName: userName,
-            userRole: userRole,
-            userPosition: userPosition,
-          ),
+          builder:
+              (_) => Schedule(
+                userName: userName,
+                userRole: userRole,
+                userPosition: userPosition,
+              ),
         ),
       );
     } on FirebaseAuthException catch (authError) {
@@ -119,6 +120,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               children: [
                 const SizedBox(height: 10),
+                Image.asset("images/logo.png", height: 120),
                 const Text(
                   "WorkshopPro",
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
