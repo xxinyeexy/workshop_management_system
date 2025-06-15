@@ -492,18 +492,6 @@ class _RatingListPageState extends State<RatingListPage>
         title: const Text("My Reviews"),
         backgroundColor: _primaryColor,
         foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              _loadPendingRatings();
-              _loadMyReviews();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Refreshing ratings...")),
-              );
-            },
-          ),
-        ],
       ),
       body:
           _isLoading
