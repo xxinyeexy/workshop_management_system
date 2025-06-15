@@ -385,11 +385,8 @@ class _RatingListPageState extends State<RatingListPage>
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                       Text(
-                        '${role == 'workshop_owner' ? 'Workshop Owner' : 'Foreman'} • ${isGiven ? "Given" : "Received"} on $date',
-                        style: TextStyle(
-                          color: isGiven ? Colors.blue : Colors.green,
-                          fontSize: 12,
-                        ),
+                        '${_formatDate(timestamp)}',
+                        style: TextStyle(color: Colors.grey, fontSize: 12),
                       ),
                     ],
                   ),

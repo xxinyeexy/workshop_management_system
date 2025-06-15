@@ -25,32 +25,51 @@ class _TasksPageState extends State<TasksPage> {
   Future<void> fetchTasks() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
     final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-    final role =  userDoc['role'];
-    if(role == "foreman"){
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('tasks')
-          .where('foremanId', isEqualTo: uid)
-          .get();
+    final role = userDoc['role'];
 
-      setState(() {
-        tasks = querySnapshot.docs
-        .map((doc) => TaskModel.fromMap(doc.data(),doc.id))
-        .toList();
-      });}
-    else{
+    Query query;
+
+    if (role == "foreman") {
+      query = FirebaseFirestore.instance
+          .collection('tasks')
+          .where('foremanId', isEqualTo: uid);
+    } else {
       final workshopName = userDoc['fullName'];
-      final querySnapshot = await FirebaseFirestore.instance
+      query = FirebaseFirestore.instance
           .collection('tasks')
-          .where('workshopName', isEqualTo: workshopName)
-          .get();
-
-      setState(() {
-        tasks = querySnapshot.docs
-        .map((doc) => TaskModel.fromMap(doc.data(),doc.id))
-        .toList();
-      });
+          .where('workshopName', isEqualTo: workshopName);
     }
+
+    final querySnapshot = await query.get();
+
+    final fetchedTasks = querySnapshot.docs
+        .map((doc) => TaskModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .toList();
+
+    // Define status priority
+    const statusOrder = {
+      'scheduled': 0,
+      'completed': 1,
+      'paid': 2,
+      'cancelled': 3,
+    };
+
+    // Custom sort: by status first, then by taskStartTime
+    fetchedTasks.sort((a, b) {
+      final statusCompare = (statusOrder[a.taskStatus.toLowerCase()] ?? 999)
+          .compareTo(statusOrder[b.taskStatus.toLowerCase()] ?? 999);
+
+      if (statusCompare != 0) return statusCompare;
+
+      return a.taskStartTime.compareTo(b.taskStartTime);
+    });
+
+    setState(() {
+      tasks = fetchedTasks;
+    });
   }
+
+
 
   @override
   Widget build(BuildContext context) {
