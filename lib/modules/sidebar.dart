@@ -143,7 +143,7 @@ class _SidebarMenuState extends State<SidebarMenu> {
             backgroundColor: Colors.white,
             appBar: AppBar(
               title: const Text('Inventory'),
-              backgroundColor: Colors.indigo[500],
+              backgroundColor: Color(0xFF2FB668),
               foregroundColor: Colors.white,
               leading: Builder(
                 builder:
@@ -183,7 +183,7 @@ class _SidebarMenuState extends State<SidebarMenu> {
             backgroundColor: Colors.white,
             appBar: AppBar(
               title: const Text('Marketplace'),
-              backgroundColor: Colors.indigo[500],
+              backgroundColor: Color(0xFF2FB668),
               foregroundColor: Colors.white,
               leading: Builder(
                 builder:
