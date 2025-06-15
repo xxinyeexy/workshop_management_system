@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:flutter/material.dart';
-import 'package:workshop_management_system/models/InventoryInfo.dart';
+import 'package:workshop_management_system/domain/InventoryInfo.dart';
 import 'package:workshop_management_system/provider/InventoryController.dart';
 import 'package:workshop_management_system/core/widgets/sidebar.dart'; // Import SidebarMenu
 import 'package:workshop_management_system/routes/route.dart';

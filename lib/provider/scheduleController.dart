@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/taskModel.dart';
+import '../domain/taskModel.dart';
 import '../modules/schedule/widgets/taskCard.dart';
 
 void showCancelTaskDialog({

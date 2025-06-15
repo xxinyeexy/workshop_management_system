@@ -7,8 +7,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import 'package:workshop_management_system/models/InventoryInfo.dart';
-import 'package:workshop_management_system/models/MarketplaceInfo.dart';
+import 'package:workshop_management_system/domain/InventoryInfo.dart';
+import 'package:workshop_management_system/domain/MarketplaceInfo.dart';
 import 'package:workshop_management_system/routes/route.dart';
 
 class InventoryController {
