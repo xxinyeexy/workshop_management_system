@@ -7,28 +7,29 @@ import 'package:workshop_management_system/modules/sidebar.dart'; // Import Side
 import 'package:workshop_management_system/routes/route.dart';
 
 class MarketplaceSaleListingPage extends StatefulWidget {
-   final GeoPoint? user_geo_point; // Pass user location  
-  const MarketplaceSaleListingPage({
-    super.key,
-    this.user_geo_point, 
-    
-  });
+  final GeoPoint? user_geo_point; // Pass user location
+  const MarketplaceSaleListingPage({super.key, this.user_geo_point});
 
   @override
-  _MarketplaceSaleListingPageState createState() => _MarketplaceSaleListingPageState();
+  _MarketplaceSaleListingPageState createState() =>
+      _MarketplaceSaleListingPageState();
 }
 
-class _MarketplaceSaleListingPageState extends State<MarketplaceSaleListingPage> {
+class _MarketplaceSaleListingPageState
+    extends State<MarketplaceSaleListingPage> {
   final InventoryController inventoryController = InventoryController();
   final Map<String, int> selectedQuantities = {};
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<MarketplaceInfo>>(
-       stream: widget.user_geo_point != null
-          ? inventoryController.getSaleListingsByGeoPoint(widget.user_geo_point!) //get nearby sale listings
-          : inventoryController.getSaleListings(), //get all sale listings
-      
+      stream:
+          widget.user_geo_point != null
+              ? inventoryController.getSaleListingsByGeoPoint(
+                widget.user_geo_point!,
+              ) //get nearby sale listings
+              : inventoryController.getSaleListings(), //get all sale listings
+
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -39,7 +40,7 @@ class _MarketplaceSaleListingPageState extends State<MarketplaceSaleListingPage>
         }
 
         final listings = snapshot.data ?? [];
-        
+
         if (listings.isEmpty) {
           return Center(
             child: Column(
@@ -48,15 +49,15 @@ class _MarketplaceSaleListingPageState extends State<MarketplaceSaleListingPage>
                 const Icon(Icons.store, size: 64, color: Colors.grey),
                 const SizedBox(height: 16),
                 Text(
-                  widget.user_geo_point != null 
-                      ? 'No nearby items for sale' 
+                  widget.user_geo_point != null
+                      ? 'No nearby items for sale'
                       : 'No items for sale',
                   style: TextStyle(fontSize: 18, color: Colors.grey),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  widget.user_geo_point != null 
-                      ? 'Be the first to list something nearby' 
+                  widget.user_geo_point != null
+                      ? 'Be the first to list something nearby'
                       : 'Be the first to list something',
                   style: TextStyle(fontSize: 14, color: Colors.grey),
                 ),
@@ -70,12 +71,11 @@ class _MarketplaceSaleListingPageState extends State<MarketplaceSaleListingPage>
           itemCount: listings.length,
           itemBuilder: (context, index) {
             final listing = listings[index];
-            
-          
+
             if (!selectedQuantities.containsKey(listing.listing_id)) {
               selectedQuantities[listing.listing_id!] = 1;
             }
-            
+
             return _buildSaleListingCard(listing);
           },
         );
@@ -96,21 +96,20 @@ class _MarketplaceSaleListingPageState extends State<MarketplaceSaleListingPage>
       distanceText = formatDistance(distance);
     }
 
-    return GestureDetector( 
-      onTap: () => purchase(context, listing), 
+    return GestureDetector(
+      onTap: () => purchase(context, listing),
       child: Card(
         margin: const EdgeInsets.only(bottom: 16),
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: Colors.grey[300]!), 
+          side: BorderSide(color: Colors.grey[300]!),
         ),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -128,7 +127,7 @@ class _MarketplaceSaleListingPageState extends State<MarketplaceSaleListingPage>
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${listing.item_description ?? ""}',  //Show item description
+                          '${listing.item_description ?? ""}', //Show item description
                           style: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 14,
@@ -136,7 +135,8 @@ class _MarketplaceSaleListingPageState extends State<MarketplaceSaleListingPage>
                         ),
                         // Seller name
                         Text(
-                          listing.seller_name ?? 'Unknown Seller',  //Show seller name
+                          listing.seller_name ??
+                              'Unknown Seller', //Show seller name
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey[600],
@@ -145,14 +145,16 @@ class _MarketplaceSaleListingPageState extends State<MarketplaceSaleListingPage>
                       ],
                     ),
                   ),
-                  
-                  
+
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       if (distanceText != null)
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.blue.shade100,
                             borderRadius: BorderRadius.circular(12),
@@ -160,7 +162,11 @@ class _MarketplaceSaleListingPageState extends State<MarketplaceSaleListingPage>
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.location_on, size: 14, color: Colors.indigo),
+                              Icon(
+                                Icons.location_on,
+                                size: 14,
+                                color: Colors.indigo,
+                              ),
                               SizedBox(width: 4),
                               Text(
                                 distanceText,
@@ -174,11 +180,10 @@ class _MarketplaceSaleListingPageState extends State<MarketplaceSaleListingPage>
                           ),
                         ),
                       SizedBox(height: 4),
-                      
+
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                         
                           SizedBox(width: 4),
                           Icon(
                             Icons.arrow_forward_ios,
@@ -191,10 +196,9 @@ class _MarketplaceSaleListingPageState extends State<MarketplaceSaleListingPage>
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 12),
-              
-              
+
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -203,20 +207,15 @@ class _MarketplaceSaleListingPageState extends State<MarketplaceSaleListingPage>
                     children: [
                       Text(
                         'RM ${listing.item_costperunit.toStringAsFixed(2)}/unit', // Show item cost per unit
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w500,
-                        ),
+                        style: const TextStyle(fontWeight: FontWeight.w500),
                       ),
                       Text(
                         'Qty: ${listing.item_quantity}', // Show item quantity available
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(color: Colors.grey[600]),
                       ),
                     ],
                   ),
-                  
-                  
+
                   Row(
                     children: [
                       // Choose quantity to buy
@@ -232,9 +231,12 @@ class _MarketplaceSaleListingPageState extends State<MarketplaceSaleListingPage>
                               icon: const Icon(Icons.remove, size: 16),
                               onPressed: () {
                                 setState(() {
-                                  int currentQty = selectedQuantities[listing.listing_id!] ?? 1;
+                                  int currentQty =
+                                      selectedQuantities[listing.listing_id!] ??
+                                      1;
                                   if (currentQty > 1) {
-                                    selectedQuantities[listing.listing_id!] = currentQty - 1;
+                                    selectedQuantities[listing.listing_id!] =
+                                        currentQty - 1;
                                   }
                                 });
                               },
@@ -244,21 +246,24 @@ class _MarketplaceSaleListingPageState extends State<MarketplaceSaleListingPage>
                               ),
                               padding: EdgeInsets.zero,
                             ),
-                            
+
                             // Quantity display
                             Text(
                               '${selectedQuantities[listing.listing_id!] ?? 1}',
                               style: const TextStyle(fontSize: 16),
                             ),
-                            
+
                             // Increment button
                             IconButton(
                               icon: const Icon(Icons.add, size: 16),
                               onPressed: () {
                                 setState(() {
-                                  int currentQty = selectedQuantities[listing.listing_id!] ?? 1;
+                                  int currentQty =
+                                      selectedQuantities[listing.listing_id!] ??
+                                      1;
                                   if (currentQty < listing.item_quantity) {
-                                    selectedQuantities[listing.listing_id!] = currentQty + 1;
+                                    selectedQuantities[listing.listing_id!] =
+                                        currentQty + 1;
                                   }
                                 });
                               },
@@ -271,9 +276,9 @@ class _MarketplaceSaleListingPageState extends State<MarketplaceSaleListingPage>
                           ],
                         ),
                       ),
-                      
+
                       const SizedBox(width: 12),
-                      
+
                       // Buy Now button
                       ElevatedButton(
                         onPressed: () => purchase(context, listing),
@@ -306,18 +311,15 @@ class _MarketplaceSaleListingPageState extends State<MarketplaceSaleListingPage>
     }
   }
 
-  
-
-    void purchase(context, MarketplaceInfo listing) {
-  AppRouter.navigateTo(
-    context,
-    AppRoutes.saleDetails,
-    arguments: {
-      'listing': listing,
-      'user_geo_point': widget.user_geo_point,
-      'selected_quantity': selectedQuantities[listing.listing_id] ?? 1,
-    },
-  );
-}
-
+  void purchase(context, MarketplaceInfo listing) {
+    AppRouter.navigateTo(
+      context,
+      AppRoutes.saleDetails,
+      arguments: {
+        'listing': listing,
+        'user_geo_point': widget.user_geo_point,
+        'selected_quantity': (selectedQuantities[listing.listing_id] ?? 1).toInt()
+      },
+    );
+  }
 }

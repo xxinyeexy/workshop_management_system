@@ -13,7 +13,7 @@ import '../modules/inventory/views/page/MarketplaceSaleListingPage.dart';
 import '../modules/inventory/views/page/MarketplaceRequestListingPage.dart';
 import '../modules/inventory/views/page/SellForm.dart';
 import '../modules/inventory/views/page/RequestInventoryForm.dart';
-import '../modules/inventory/views/page/SaleDetailsPage.dart';
+import '../modules/inventory/views/page/SaleDetailsPage.dart' as sale_details;
 import '../modules/inventory/views/page/RequestDetailsPage.dart';
 
 class AppRoutes {
@@ -31,6 +31,7 @@ class AppRoutes {
   static const String sellForm = '/sellForm';
   static const String requestForm = '/requestForm';
   static const String saleDetails = '/saleDetails';
+  static const String saleDetailsCopy = '/saleDetailsCopy';
   static const String requestDetails = '/requestDetails';
 
   
@@ -103,10 +104,12 @@ class AppRouter {
         return MaterialPageRoute(
           builder:
               (_) =>
-                  SaleDetailsPage(sale_item: saleItem, user_geo_point: userGeoPoint,
+                  sale_details.SaleDetailsPage(sale_item: saleItem, user_geo_point: userGeoPoint,
                     selected_quantity: selectedQuantity,
                   ),
         );
+
+  
 
 
       case AppRoutes.requestDetails:

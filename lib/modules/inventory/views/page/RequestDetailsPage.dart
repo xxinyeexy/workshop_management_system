@@ -180,7 +180,7 @@ void initializeUserId() async {
                           ),
                         ),
                         Text(
-                          '(20km distance)',
+                          '(20 km distance)',
                           style: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 14,

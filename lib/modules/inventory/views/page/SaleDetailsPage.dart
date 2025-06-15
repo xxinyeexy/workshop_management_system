@@ -26,7 +26,6 @@ class SaleDetailsPage extends StatefulWidget {
 
 class _SaleDetailsPageState extends State<SaleDetailsPage> {
   final InventoryController inventoryController = InventoryController(); //Access InventoryController
-  bool _isLoading = true;
   bool _isProcessing = false;
   MarketplaceInfo? _sale_item;
   late int selected_quantity; 
@@ -38,16 +37,25 @@ class _SaleDetailsPageState extends State<SaleDetailsPage> {
   @override
   void initState() {
     super.initState();
-    initializeUserId();
-    initializeUserName();
+    // Initialize the sale item and selected quantity from widget parameters
+    _sale_item = widget.sale_item;
+    selected_quantity = widget.selected_quantity;
+    
+    // Initialize user data
+    _initializeUserData();
   }
 
-  void initializeUserId() async {
-    current_user_id = await inventoryController.getCurrentUserId();
-  }
-
-  void initializeUserName() async {
-    current_user_name = await inventoryController.getCurrentUserName();
+  void _initializeUserData() async {
+    try {
+      current_user_id = await inventoryController.getCurrentUserId();
+      current_user_name = await inventoryController.getCurrentUserName();
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to load user data: $e';
+        });
+      }
+    }
   }
 
   double get _totalCost => selected_quantity * (_sale_item?.item_costperunit ?? 0);
@@ -108,21 +116,6 @@ class _SaleDetailsPageState extends State<SaleDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(
-        backgroundColor: Colors.grey[100],
-
-        appBar: AppBar(
-          title: const Text('Sale Details',  //Title
-          style: TextStyle(color: Colors.white)), 
-          backgroundColor: Colors.indigo[500],
-        ),
-        body: const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
     if (_errorMessage != null) {
       return Scaffold(
         appBar: AppBar(

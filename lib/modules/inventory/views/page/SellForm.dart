@@ -39,13 +39,23 @@ class _SellFormState extends State<SellForm> {
   bool _is_loading_inventory = true;
 
   // Seller information (retrieve from owner table))
-  final String _seller_id = 'current_user_id'; // owner.owner_id
-  final String _seller_name = 'current_user_name'; // owner.owner_name
+  late final String _seller_id; // owner.owner_id
+  late final String _seller_name; // owner.owner_name 
   
   @override
   void initState() {
     super.initState();
     loadInventoryItems();
+    initializeUserId();
+    initializeUserName();
+  }
+
+   void initializeUserId() async {
+    _seller_id = await inventoryController.getCurrentUserId();
+  }
+
+  void initializeUserName() async {
+    _seller_name = await inventoryController.getCurrentUserName();
   }
 
   Future<void> loadInventoryItems() async { //Get inventory items for user to choose from

@@ -38,9 +38,24 @@ class _RequestInventoryFormState extends State<RequestInventoryForm> {
   bool _is_uploading = false;
 
   // User information
-  final String _buyer_id = 'current_user_id'; // owner.onwer.id
-  final String _buyer_name = 'Current User'; // owner.owner_name
-  
+  late final String _buyer_id; // owner.onwer.id
+  late final String _buyer_name; // owner.owner_name
+
+  @override
+  void initState() {
+    super.initState();
+    
+    initializeUserId();
+    initializeUserName();
+  }
+
+   void initializeUserId() async {
+    _buyer_id = await inventoryController.getCurrentUserId();
+  }
+
+  void initializeUserName() async {
+    _buyer_name = await inventoryController.getCurrentUserName();
+  }
 
   @override
   void dispose() {
