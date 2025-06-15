@@ -7,7 +7,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import '../../../../models/MarketplaceInfo.dart';
 
 import 'package:workshop_management_system/provider/InventoryController.dart';
-import 'package:workshop_management_system/widgets/sidebar.dart'; // Import SidebarMenu
+import 'package:workshop_management_system/core/widgets/sidebar.dart'; // Import SidebarMenu
 import 'package:workshop_management_system/routes/route.dart'; 
 
 
