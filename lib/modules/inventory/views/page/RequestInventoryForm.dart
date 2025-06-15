@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import '../../../models/MarketplaceInfo.dart';
+import '../../../../models/MarketplaceInfo.dart';
 
 import 'package:workshop_management_system/provider/InventoryController.dart';
 import 'package:workshop_management_system/modules/sidebar.dart'; // Import SidebarMenu

@@ -79,7 +79,7 @@ class _SidebarMenuState extends State<SidebarMenu> {
       case UserRole.WorkshopOwner:
         return const Color(0xFF4361EE);
       case UserRole.Foreman:
-        return const Color(0xFF3498DB);
+        return const Color(0xFF2FB668);
     }
   }
 
