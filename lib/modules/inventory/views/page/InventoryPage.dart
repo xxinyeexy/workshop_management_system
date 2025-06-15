@@ -1,12 +1,27 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:flutter/material.dart';
 import 'package:workshop_management_system/modules/inventory/models/InventoryInfo.dart';
 import 'package:workshop_management_system/modules/inventory/providers/InventoryController.dart';
-
+import 'package:workshop_management_system/modules/sidebar.dart'; // Import SidebarMenu
 import 'package:workshop_management_system/routes/route.dart';
-import 'package:workshop_management_system/widgets/menu.dart';
 
 class InventoryPage extends StatefulWidget {
-  const InventoryPage({super.key});
+  final String userRole;
+  final String userName;
+
+  final String userPosition;
+
+  
+  const InventoryPage({
+    super.key,
+    required this.userRole,
+    required this.userName,  // widget.userName = workshopName
+  
+    required this.userPosition,
+   
+    });
 
   @override
   _InventoryPageState createState() => _InventoryPageState();
@@ -14,16 +29,27 @@ class InventoryPage extends StatefulWidget {
 
 class _InventoryPageState extends State<InventoryPage> {
   final InventoryController inventoryController = InventoryController();  //Access to InventoryController
+  final CollectionReference _inventoryCollection = 
+      FirebaseFirestore.instance.collection('inventory');
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      drawer: const AppDrawer(
-        userName: 'John Smith', //owner_name
-        userRole: 'Workshop Owner', //owner_role
-      ), //Menu with user info
+      drawer: SidebarMenu(
+              userRole:
+                  widget.userRole.toLowerCase() == 'foreman'
+                      ? UserRole.Foreman
+                      : UserRole.WorkshopOwner,
+              userName: widget.userName,
+              userPosition: widget.userPosition,
+              selectedTitle: 'Inventory', 
+              originalUserRole: widget.userRole,
+              onSelectedTitleChanged: (title) {
+                // Optional: sync state or navigation logic here
+              },
+            ),
       backgroundColor: Colors.grey[100], 
       appBar: AppBar(
         title: const Text(
@@ -44,11 +70,7 @@ class _InventoryPageState extends State<InventoryPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add, color: Colors.white),
-            onPressed: () { addInventory() {
-                    // Navigate to AddInventoryForm.dart
-                    AppRouter.navigateTo(context, AppRoutes.addInventory);
-                  }
-            },
+            onPressed: () => addInventory(context),
           ),
         ],
       ),

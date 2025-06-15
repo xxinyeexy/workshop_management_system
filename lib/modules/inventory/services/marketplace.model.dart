@@ -3,11 +3,12 @@ import 'package:geolocator/geolocator.dart';
 import 'package:workshop_management_system/modules/inventory/models/MarketplaceInfo.dart';
 
 class MarketplaceService {
-  final CollectionReference _marketplace_collection =
-      FirebaseFirestore.instance.collection('marketplace');
+  final CollectionReference _marketplaceCollection = FirebaseFirestore.instance.collection('marketplace');
+      
+      
 
   Stream<List<MarketplaceInfo>> getAllListings() {
-    return _marketplace_collection
+    return _marketplaceCollection
         .orderBy('created_at', descending: true)
         .snapshots()
         .map(convertQuerySnapshotToMarketplaceList);
@@ -16,7 +17,7 @@ class MarketplaceService {
   
 
   Stream<List<MarketplaceInfo>> getListingsBySeller(String sellerId) {
-    return _marketplace_collection
+    return _marketplaceCollection
         .where('seller_id', isEqualTo: sellerId)
         .orderBy('created_at', descending: true)
         .snapshots()
@@ -24,7 +25,7 @@ class MarketplaceService {
   }
 
   Stream<List<MarketplaceInfo>> getListingsByBuyer(String buyerId) {
-    return _marketplace_collection
+    return _marketplaceCollection
         .where('buyer_id', isEqualTo: buyerId)
         .orderBy('created_at', descending: true)
         .snapshots()
@@ -45,7 +46,7 @@ class MarketplaceService {
         updated_at: DateTime.now(),
       );
 
-      return _marketplace_collection
+      return _marketplaceCollection
           .doc(listing.listing_id)
           .update(updatedListing.toFirestore());
     } catch (e) {
@@ -56,7 +57,7 @@ class MarketplaceService {
   Future<void> completeListing(String id,
       {String? buyer_id, GeoPoint? buyer_location}) async {
     try {
-      DocumentSnapshot doc = await _marketplace_collection.doc(id).get();
+      DocumentSnapshot doc = await _marketplaceCollection.doc(id).get();
       if (!doc.exists) {
         throw Exception('Listing not found');
       }
@@ -72,7 +73,7 @@ class MarketplaceService {
         updated_at: DateTime.now(),
       );
 
-      return _marketplace_collection.doc(id).update(updatedListing.toFirestore());
+      return _marketplaceCollection.doc(id).update(updatedListing.toFirestore());
     } catch (e) {
       rethrow;
     }
@@ -80,7 +81,7 @@ class MarketplaceService {
 
   Future<void> updatePaymentStatus(String id, PaymentStatus status) async {
     try {
-      return _marketplace_collection.doc(id).update({
+      return _marketplaceCollection.doc(id).update({
         'payment_status': MarketplaceInfo.paymentStatusToString(status),
         'updated_at': Timestamp.now(),
       });
@@ -91,7 +92,7 @@ class MarketplaceService {
 
   Future<void> deleteListing(String id) {
     try {
-      return _marketplace_collection.doc(id).delete();
+      return _marketplaceCollection.doc(id).delete();
     } catch (e) {
       rethrow;
     }
@@ -101,7 +102,7 @@ class MarketplaceService {
       {ListingType? type}) {
     String searchTerm = query.toLowerCase();
 
-    Query baseQuery = _marketplace_collection
+    Query baseQuery = _marketplaceCollection
         .orderBy('item_name')
         .startAt([searchTerm])
         .endAt(['$searchTerm\uf8ff']);

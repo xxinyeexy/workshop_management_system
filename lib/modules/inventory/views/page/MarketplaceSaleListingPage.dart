@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:workshop_management_system/modules/inventory/models/MarketplaceInfo.dart';
 import 'package:workshop_management_system/modules/inventory/providers/InventoryController.dart';
-
+import 'package:workshop_management_system/modules/sidebar.dart'; // Import SidebarMenu
 import 'package:workshop_management_system/routes/route.dart';
 
 class MarketplaceSaleListingPage extends StatefulWidget {
@@ -20,7 +20,7 @@ class MarketplaceSaleListingPage extends StatefulWidget {
 
 class _MarketplaceSaleListingPageState extends State<MarketplaceSaleListingPage> {
   final InventoryController inventoryController = InventoryController();
-  final Map<String, int> _selectedQuantities = {};
+  final Map<String, int> selectedQuantities = {};
 
   @override
   Widget build(BuildContext context) {
@@ -72,8 +72,8 @@ class _MarketplaceSaleListingPageState extends State<MarketplaceSaleListingPage>
             final listing = listings[index];
             
           
-            if (!_selectedQuantities.containsKey(listing.listing_id)) {
-              _selectedQuantities[listing.listing_id!] = 1;
+            if (!selectedQuantities.containsKey(listing.listing_id)) {
+              selectedQuantities[listing.listing_id!] = 1;
             }
             
             return _buildSaleListingCard(listing);
@@ -97,7 +97,7 @@ class _MarketplaceSaleListingPageState extends State<MarketplaceSaleListingPage>
     }
 
     return GestureDetector( 
-      onTap: () => purchase(listing), 
+      onTap: () => purchase(context, listing), 
       child: Card(
         margin: const EdgeInsets.only(bottom: 16),
         elevation: 0,
@@ -232,9 +232,9 @@ class _MarketplaceSaleListingPageState extends State<MarketplaceSaleListingPage>
                               icon: const Icon(Icons.remove, size: 16),
                               onPressed: () {
                                 setState(() {
-                                  int currentQty = _selectedQuantities[listing.listing_id!] ?? 1;
+                                  int currentQty = selectedQuantities[listing.listing_id!] ?? 1;
                                   if (currentQty > 1) {
-                                    _selectedQuantities[listing.listing_id!] = currentQty - 1;
+                                    selectedQuantities[listing.listing_id!] = currentQty - 1;
                                   }
                                 });
                               },
@@ -247,7 +247,7 @@ class _MarketplaceSaleListingPageState extends State<MarketplaceSaleListingPage>
                             
                             // Quantity display
                             Text(
-                              '${_selectedQuantities[listing.listing_id!] ?? 1}',
+                              '${selectedQuantities[listing.listing_id!] ?? 1}',
                               style: const TextStyle(fontSize: 16),
                             ),
                             
@@ -256,9 +256,9 @@ class _MarketplaceSaleListingPageState extends State<MarketplaceSaleListingPage>
                               icon: const Icon(Icons.add, size: 16),
                               onPressed: () {
                                 setState(() {
-                                  int currentQty = _selectedQuantities[listing.listing_id!] ?? 1;
+                                  int currentQty = selectedQuantities[listing.listing_id!] ?? 1;
                                   if (currentQty < listing.item_quantity) {
-                                    _selectedQuantities[listing.listing_id!] = currentQty + 1;
+                                    selectedQuantities[listing.listing_id!] = currentQty + 1;
                                   }
                                 });
                               },
@@ -276,7 +276,7 @@ class _MarketplaceSaleListingPageState extends State<MarketplaceSaleListingPage>
                       
                       // Buy Now button
                       ElevatedButton(
-                        onPressed: () => purchase(listing),
+                        onPressed: () => purchase(context, listing),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.indigo[500],
                           foregroundColor: Colors.white,
@@ -308,15 +308,16 @@ class _MarketplaceSaleListingPageState extends State<MarketplaceSaleListingPage>
 
   
 
-    void purchase(MarketplaceInfo listing) {
-      AppRouter.navigateTo(
-        context,
-        AppRoutes.saleDetails,
-        arguments: {
-          'listing': listing,
-          'user_geo_point': widget.user_geo_point,
-          'selected_quantity': _selectedQuantities[listing.listing_id!],
-        },
-      );
-    }
+    void purchase(context, MarketplaceInfo listing) {
+  AppRouter.navigateTo(
+    context,
+    AppRoutes.saleDetails,
+    arguments: {
+      'listing': listing,
+      'user_geo_point': widget.user_geo_point,
+      'selected_quantity': selectedQuantities[listing.listing_id] ?? 1,
+    },
+  );
+}
+
 }

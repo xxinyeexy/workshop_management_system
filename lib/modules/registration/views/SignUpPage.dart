@@ -228,6 +228,7 @@ class _RegisterScreenState extends State<RegisterScreen>
               TextField(
                 controller: fullNameController,
                 decoration: _inputDecoration("Full Name"),
+                
               ),
               const SizedBox(height: 16),
               TextField(
@@ -245,6 +246,7 @@ class _RegisterScreenState extends State<RegisterScreen>
               TextField(
                 controller: passwordController,
                 decoration: _inputDecoration("Password"),
+                keyboardType: TextInputType.text,
                 obscureText: true,
               ),
               const SizedBox(height: 16),

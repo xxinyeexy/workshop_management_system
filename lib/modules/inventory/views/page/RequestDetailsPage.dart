@@ -3,8 +3,8 @@ import 'package:hive/hive.dart';
 import '../../models/MarketplaceInfo.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:workshop_management_system/modules/inventory/providers/InventoryController.dart';
-import 'package:workshop_management_system/modules/inventory/models/InventoryInfo.dart'; // Add this import if InventoryInfo exists
-
+import 'package:workshop_management_system/modules/inventory/models/InventoryInfo.dart'; 
+import 'package:workshop_management_system/modules/sidebar.dart'; // Import SidebarMenu
 import 'package:geolocator/geolocator.dart';
 
 
@@ -27,77 +27,77 @@ class _RequestDetailsPageState extends State<RequestDetailsPage> {
 
   bool _isProcessing = false;
   int _quantity = 1;
-  late int current_user_id;
+  late String current_user_id;
+  late String current_user_name;
 
   @override
   void initState() {
     super.initState();
-    Hive.openBox('user');
-    current_user_id = Hive.box('user').get('user_id') ?? 0;
+    initializeUserId();
     _quantity = widget.request_item.item_quantity > 0 ? widget.request_item.item_quantity : 1;
   }
 
   double get _totalCost => _quantity * widget.request_item.item_costperunit;
+
+void initializeUserId() async {
+    current_user_id = await inventoryController.getCurrentUserId();
+  }
+
+  void initializeUsername() async {
+    current_user_name = await inventoryController.getCurrentUserName();
+  }
 
   void cancelRequest() {
     Navigator.pop(context);
   }
 
   void proceedToPayment() async {
+  setState(() {
+    _isProcessing = true;
+  });
+
+  try {
+    // Update inventory quantity if inventory item existed, create new inventory item if not
+    await inventoryController.updateInventory(
+      widget.request_item.listing_id!, 
+      widget.request_item.item_name,
+      _quantity,
+    );
+
+    // Complete the listing by updating the payment status, listing status and buyer details
+    await inventoryController.completeRequestListing(
+      widget.request_item.listing_id!,
+      current_user_id,
+      current_user_name,
+      widget.user_geo_point,
+    );
     
-    setState(() {
-      _isProcessing = true;
-    });
-
-    
-      try {
-      // Get current inventory info
-      final InventoryInfo? inv = 
-          await inventoryController.getInventoryInfo(widget.request_item.listing_id!);
-
-      // Calculate new quantity
-      final int newQuantity = (inv?.item_quantity ?? 0) + _quantity;
-
-      // Update inventory quantity
-      await inventoryController.updateInventoryQuantity(
-        widget.request_item.listing_id!,
-        newQuantity,
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Payment processed successfully'),
+          backgroundColor: Colors.green,
+        )
       );
-
-      // Complete the listing by updating the payment status, listing status and buyer details
-      await inventoryController.completeRequestListing(
-        widget.request_item.listing_id!,
-        current_user_id,
-        widget.user_geo_point,
+      Navigator.pop(context);
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error processing payment: $e'),
+          backgroundColor: Colors.red,
+        )
       );
-    
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Payment processed successfully'),
-            backgroundColor: Colors.green,
-          )
-        );
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error processing payment: $e'),
-            backgroundColor: Colors.red,
-          )
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isProcessing = false;
-        });
-      }
+    }
+  } finally {
+    if (mounted) {
+      setState(() {
+        _isProcessing = false;
+      });
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {

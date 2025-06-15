@@ -26,6 +26,9 @@ class MyApp extends StatelessWidget {
       title: 'WorkshopPro',
       debugShowCheckedModeBanner: false,
       home: const WelcomeScreen(),
+      navigatorKey: NavigationService.navigatorKey, 
+      onGenerateRoute: AppRouter.onGenerateRoute, 
+
     );
   }
 }

@@ -5,18 +5,36 @@ import 'package:geolocator/geolocator.dart';
 import 'package:hive/hive.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:workshop_management_system/modules/inventory/models/InventoryInfo.dart';
 import 'package:workshop_management_system/modules/inventory/models/MarketplaceInfo.dart';
 import 'package:workshop_management_system/routes/route.dart';
 
 class InventoryController {
    final CollectionReference _inventoryCollection = 
-      FirebaseFirestore.instance.collection('inventory');   //Access to Firestore Inventory Collection
+       FirebaseFirestore.instance.collection('inventory');   //Access to Firestore Inventory Collection
 
    bool _has_shown_location_dialog = false;
 
-      final CollectionReference _marketplace_collection =
-      FirebaseFirestore.instance.collection('marketplace'); //Access to Firestore Marketplace Collection
+      final CollectionReference _marketplaceCollection =
+       FirebaseFirestore.instance.collection('marketplace'); //Access to Firestore Marketplace Collection
+
+Future<String> getCurrentUserId() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return 'Unknown Workshop';
+    final userDoc =
+        await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    return userDoc.data()?['uid'] ?? 'Unknown User';
+  }
+
+  Future<String> getCurrentUserName() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return 'Unknown Workshop';
+    final userDoc =
+        await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    return userDoc.data()?['fullName'] ?? 'Unknown User';
+  }
 
 //Retrieve all inventory items in InventoryInfo (will return in List)
     Stream<List<InventoryInfo>> getInventory() {   
@@ -63,15 +81,39 @@ class InventoryController {
     }
   }
 
-  // Update inventory quantity only
-  Future<void> updateInventoryQuantity(String id, int newQuantity) {
-    try {
-      return _inventoryCollection.doc(id).update({'item_quantity': newQuantity});
-    } catch (e) {
-      print('Error updating inventory quantity: $e');
-      rethrow;
+  
+
+  // Update inventory quantity if the item exists, creates a new inventory item if it doesn't
+  Future<void> updateInventory(String id, String item_name, int newQuantity) async {
+  try {
+    // Query to find an existing inventory item with the same name
+    QuerySnapshot querySnapshot = await _inventoryCollection
+        .where('item_name', isEqualTo: item_name)
+        .limit(1)
+        .get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+      // Item exists, update its quantity
+      DocumentSnapshot existingDoc = querySnapshot.docs.first;
+      int currentQuantity = existingDoc['item_quantity'] ?? 0;
+      
+      await _inventoryCollection.doc(existingDoc.id).update({
+        'item_quantity': currentQuantity + newQuantity
+      });
+    } else {
+      // Item doesn't exist, create a new inventory item
+      await _inventoryCollection.add({
+        'item_name': item_name,
+        'item_quantity': newQuantity,
+        // Add other necessary fields
+        'created_at': FieldValue.serverTimestamp(),
+      });
     }
+  } catch (e) {
+    print('Error updating/creating inventory: $e');
+    rethrow;
   }
+}
 
   List<InventoryInfo> _convertQuerySnapshotToInventoryList(QuerySnapshot snapshot) {
     return snapshot.docs.map((doc) {
@@ -92,7 +134,7 @@ class InventoryController {
   //Handles Marketplace Operation
   Stream<List<MarketplaceInfo>> getSaleListingsByGeoPoint(GeoPoint userLocation) {
     const double radiusInKm = 20.0;
-    return _marketplace_collection
+    return _marketplaceCollection
         .where('listing_type', isEqualTo: 'sale')
         .where('listing_status', isEqualTo: 'pending')
         .orderBy('created_at', descending: true)
@@ -113,7 +155,7 @@ class InventoryController {
   }
 
   Stream<List<MarketplaceInfo>> getSaleListings() {
-    return _marketplace_collection
+    return _marketplaceCollection
         .where('listing_type', isEqualTo: 'sale')
         .where('listing_status', isEqualTo: 'pending')
         .orderBy('created_at', descending: true)
@@ -124,7 +166,7 @@ class InventoryController {
   
 
   Stream<List<MarketplaceInfo>> getRequestListings() {
-    return _marketplace_collection
+    return _marketplaceCollection
         .where('listing_type', isEqualTo: 'request')
         .where('listing_status', isEqualTo: 'pending')
         .orderBy('created_at', descending: true)
@@ -134,7 +176,7 @@ class InventoryController {
 
   Stream<List<MarketplaceInfo>> getRequestListingsByGeoPoint(GeoPoint userLocation) {
     const double radiusInKm = 20.0;
-    return _marketplace_collection
+    return _marketplaceCollection
         .where('listing_type', isEqualTo: 'request')
         .where('listing_status', isEqualTo: 'pending')
         .orderBy('created_at', descending: true)
@@ -156,7 +198,7 @@ class InventoryController {
 
   Future<DocumentReference> createListing(MarketplaceInfo listing) {
     try {
-      return _marketplace_collection.add(listing.toFirestore());
+      return _marketplaceCollection.add(listing.toFirestore());
     } catch (e) {
       rethrow;
     }
@@ -164,11 +206,11 @@ class InventoryController {
 
   
 
-  //update buyer info, payment status and listing status
-  Future<void> completeRequestListing(String id, int current_user_id, GeoPoint? user_geo_point,
-      {String? buyer_id, GeoPoint? buyer_location}) async {
+  //update seller info, payment status and listing status
+  Future<void> completeRequestListing(String id, String current_user_id,  String current_user_name, GeoPoint? user_geo_point,
+      {String? seller_id, String? seller_name, GeoPoint? seller_location}) async {
     try {
-      DocumentSnapshot doc = await _marketplace_collection.doc(id).get();
+      DocumentSnapshot doc = await _marketplaceCollection.doc(id).get();
       if (!doc.exists) {
         throw Exception('Listing not found');
       }
@@ -180,22 +222,23 @@ class InventoryController {
         listing_type: ListingType.request,
         payment_status: PaymentStatus.paid,
         listing_status: ListingStatus.done,
-        buyer_id: buyer_id ?? listing.buyer_id,
-        buyer_location: buyer_location ?? listing.buyer_location,
+        seller_id: seller_id ?? listing.seller_id,
+        seller_name: seller_name ?? listing.seller_name,
+        seller_location: seller_location ?? listing.seller_location,
         updated_at: DateTime.now(),
       );
 
-      return _marketplace_collection.doc(id).update(updatedListing.toFirestore());
+      return _marketplaceCollection.doc(id).update(updatedListing.toFirestore());
     } catch (e) {
       rethrow;
     }
   }
 
 //update buyer info, payment status and listing status
-  Future<void> completeSaleListing(String id, int current_user_id, GeoPoint? user_geo_point,
-      {String? buyer_id, GeoPoint? buyer_location}) async {
+  Future<void> completeSaleListing(String id, String current_user_id, String current_user_name, GeoPoint? user_geo_point,
+      {String? buyer_id, String? buyer_name, GeoPoint? buyer_location}) async {
     try {
-      DocumentSnapshot doc = await _marketplace_collection.doc(id).get();
+      DocumentSnapshot doc = await _marketplaceCollection.doc(id).get();
       if (!doc.exists) {
         throw Exception('Listing not found');
       }
@@ -208,11 +251,12 @@ class InventoryController {
         payment_status: PaymentStatus.paid,
         listing_status: ListingStatus.done,
         buyer_id: buyer_id ?? listing.buyer_id,
+        buyer_name: buyer_name ?? listing.buyer_name,
         buyer_location: buyer_location ?? listing.buyer_location,
         updated_at: DateTime.now(),
       );
 
-      return _marketplace_collection.doc(id).update(updatedListing.toFirestore());
+      return _marketplaceCollection.doc(id).update(updatedListing.toFirestore());
     } catch (e) {
       rethrow;
     }

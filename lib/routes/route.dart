@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
 import 'package:workshop_management_system/modules/inventory/models/InventoryInfo.dart';
 import 'package:workshop_management_system/modules/inventory/models/MarketplaceInfo.dart';
 
@@ -32,8 +33,7 @@ class AppRoutes {
   static const String saleDetails = '/saleDetails';
   static const String requestDetails = '/requestDetails';
 
-  // Initial route
-  static const String initial = inventory;
+  
 }
 
 class AppRouter {
@@ -43,9 +43,7 @@ class AppRouter {
   static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
       // Inventory Module Routes
-      case AppRoutes.inventory:
-        return MaterialPageRoute(builder: (_) => const InventoryPage());
-
+     
       case AppRoutes.addInventory:
         return MaterialPageRoute(builder: (_) => const AddInventoryPage());
 
@@ -57,8 +55,19 @@ class AppRouter {
 
       // Marketplace Module Routes
       case AppRoutes.marketplace:
-        return MaterialPageRoute(builder: (_) => const Marketplace());
-
+        // Expecting arguments as a Map<String, dynamic>
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        final String userRole = args['userRole'] as String? ?? '';
+        final String userName = args['userName'] as String? ?? '';
+        final String userPosition = args['userPosition'] as String? ?? '';
+        return MaterialPageRoute(
+          builder: (_) => Marketplace(
+            userRole: userRole,
+            userName: userName,
+            userPosition: userPosition,
+          ),
+        );
+     
       case AppRoutes.saleListing:
         final GeoPoint? userGeoPoint = settings.arguments as GeoPoint?;
         return MaterialPageRoute(
@@ -98,6 +107,7 @@ class AppRouter {
                     selected_quantity: selectedQuantity,
                   ),
         );
+
 
       case AppRoutes.requestDetails:
         final Map<String, dynamic> args =

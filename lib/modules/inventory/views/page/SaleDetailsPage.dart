@@ -1,10 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../../models/MarketplaceInfo.dart';
 import '../../models/InventoryInfo.dart';
 import 'package:workshop_management_system/modules/inventory/providers/InventoryController.dart';
-
+import 'package:workshop_management_system/modules/sidebar.dart'; // Import SidebarMenu
 import 'package:geolocator/geolocator.dart';
 
 
@@ -31,18 +31,24 @@ class _SaleDetailsPageState extends State<SaleDetailsPage> {
   MarketplaceInfo? _sale_item;
   late int selected_quantity; 
   String? _errorMessage;
-  late int current_user_id;
+  late String current_user_id;
+  late String current_user_name;
   
 
   @override
   void initState() {
     super.initState();
-    Hive.openBox('user');
-    current_user_id = Hive.box('user').get('user_id') ?? 0;
-    
+    initializeUserId();
+    initializeUserName();
   }
 
-  
+  void initializeUserId() async {
+    current_user_id = await inventoryController.getCurrentUserId();
+  }
+
+  void initializeUserName() async {
+    current_user_name = await inventoryController.getCurrentUserName();
+  }
 
   double get _totalCost => selected_quantity * (_sale_item?.item_costperunit ?? 0);
 
@@ -53,57 +59,52 @@ class _SaleDetailsPageState extends State<SaleDetailsPage> {
   }
 
    void proceedToPayment() async {
-    if (_sale_item == null) return;
+  setState(() {
+    _isProcessing = true;
+  });
 
-    setState(() => _isProcessing = true);
+  try {
+    // Directly update or create inventory item quantity 
+    await inventoryController.updateInventory(
+      widget.sale_item.listing_id!, 
+      widget.sale_item.item_name,
+      selected_quantity,
+    );
 
-    try {
-      // Get current inventory info
-      final InventoryInfo? inv = 
-          await inventoryController.getInventoryInfo(widget.sale_item.listing_id!);
-
-      // Calculate new quantity
-      final int newQuantity = (inv?.item_quantity ?? 0) + selected_quantity;
-
-      // Update inventory quantity
-      await inventoryController.updateInventoryQuantity(
-        widget.sale_item.listing_id!,
-        newQuantity,
+    // Complete the listing by updating the payment status, listing status and buyer details
+    await inventoryController.completeSaleListing(
+      widget.sale_item.listing_id!,
+      current_user_id,
+      current_user_name,
+      widget.user_geo_point,
+    );
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Payment processed successfully'),
+          backgroundColor: Colors.green,
+        )
       );
-
-      // Complete the listing by updating the payment status, listing status and buyer details
-      await inventoryController.completeSaleListing(
-        widget.sale_item.listing_id!,
-        current_user_id,
-        widget.user_geo_point,
+      Navigator.pop(context);
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error processing payment: $e'),
+          backgroundColor: Colors.red,
+        )
       );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Payment processed successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pop(context, true); // Return true to indicate success
-      }
-    } catch (e) { //Show error message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error processing payment: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isProcessing = false;
-        });
-      }
+    }
+  } finally {
+    if (mounted) {
+      setState(() {
+        _isProcessing = false;
+      });
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {

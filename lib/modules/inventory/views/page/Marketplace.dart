@@ -1,16 +1,29 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:flutter/material.dart';
 import 'MarketplaceSaleListingPage.dart';
 import 'MarketplaceRequestListingPage.dart';
 import 'package:workshop_management_system/routes/route.dart';
-import 'package:workshop_management_system/widgets/menu.dart';
+import 'package:workshop_management_system/modules/sidebar.dart'; // Import SidebarMenu
 import 'package:workshop_management_system/modules/inventory/providers/InventoryController.dart';
 
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 
 class Marketplace extends StatefulWidget {
-  const Marketplace({super.key});
+  final String userRole;
+  final String userName;
+
+  final String userPosition;
+
+  const Marketplace({
+    super.key,
+    required this.userRole,
+    required this.userName,  // widget.userName = workshopName
+  
+    required this.userPosition,
+    });
 
   @override
   _MarketplaceState createState() => _MarketplaceState();
@@ -19,6 +32,8 @@ class Marketplace extends StatefulWidget {
 class _MarketplaceState extends State<Marketplace>
     with SingleTickerProviderStateMixin {
   late TabController _tab_controller;
+  final CollectionReference _marketplaceCollection =
+       FirebaseFirestore.instance.collection('marketplace');
     final InventoryController inventoryController = InventoryController();
 
   final GlobalKey<ScaffoldState> _scaffold_key = GlobalKey<ScaffoldState>();
@@ -52,10 +67,19 @@ class _MarketplaceState extends State<Marketplace>
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffold_key,
-      drawer: const AppDrawer(
-        userName: 'John Smith', //owner_name
-        userRole: 'Workshop Owner', //owner_role
-      ),
+      drawer: SidebarMenu(
+              userRole:
+                  widget.userRole.toLowerCase() == 'foreman'
+                      ? UserRole.Foreman
+                      : UserRole.WorkshopOwner,
+              userName: widget.userName,
+              userPosition: widget.userPosition,
+              selectedTitle: 'Marketplace', 
+              originalUserRole: widget.userRole,
+              onSelectedTitleChanged: (title) {
+                // Optional: sync state or navigation logic here
+              },
+            ),
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: const Text('Marketplace', style: TextStyle(color: Colors.white)),
@@ -99,14 +123,22 @@ class _MarketplaceState extends State<Marketplace>
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.indigo[400],
         onPressed: () {
-          if (_tab_controller.index == 0) { navigateToSellForm(){
-            AppRouter.navigateTo(context, AppRoutes.sellForm, arguments: user_geo_point);  } //Navigate to Sell Form
-          } else { navigateToRequestForm(){
-            AppRouter.navigateTo(context, AppRoutes.requestForm, arguments: user_geo_point); } //Navigate to Request Form
+          if (_tab_controller.index == 0) {
+            navigateToSaleForm(context, user_geo_point); // Navigate to Sell Form
+          } else {
+            navigateToRequestForm(context, user_geo_point); // Navigate to Request Form
           }
         },
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
+}
+
+  void navigateToSaleForm(BuildContext context, GeoPoint? user_geo_point) {
+  AppRouter.navigateTo(context, AppRoutes.sellForm, arguments: user_geo_point);
+}
+
+  void navigateToRequestForm(BuildContext context, GeoPoint? user_geo_point) {
+  AppRouter.navigateTo(context, AppRoutes.requestForm, arguments: user_geo_point);
 }

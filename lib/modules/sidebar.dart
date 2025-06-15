@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:workshop_management_system/modules/rating/views/FindForemanWorkshopPage.dart';
 import 'package:workshop_management_system/modules/schedule/views/schedule.dart';
 import 'package:workshop_management_system/modules/registration/views/UserProfile.dart';
+import 'package:workshop_management_system/modules/inventory/views/page/InventoryPage.dart';
+import 'package:workshop_management_system/modules/inventory/views/page/Marketplace.dart';
 
 enum UserRole { WorkshopOwner, Foreman }
 
@@ -141,18 +143,34 @@ class _SidebarMenuState extends State<SidebarMenu> {
         break;
 
       case 'Inventory':
-        page = buildPageWithDrawer(
-          'Inventory',
-          const Center(child: Text('Inventory Page')),
+      if (userRoleString == 'foreman')
+       {page = const Text(
+          'Inventory is not available for Foreman',
+        );}
+        page = InventoryPage(
+          userRole: userRoleString,
+          userName: widget.userName,
+          userPosition: widget.userPosition,
+
         );
         break;
 
       case 'Marketplace':
-        page = buildPageWithDrawer(
-          'Marketplace',
-          const Center(child: Text('Marketplace Page')),
+     
+        if (userRoleString == 'foreman') {
+          page = const Text(
+            'Marketplace is not available for Foreman',
+          );
+          break;
+        }
+        page = Marketplace(
+         userRole: userRoleString,
+          userName: widget.userName,
+          userPosition: widget.userPosition,
+
         );
         break;
+
 
       case 'Payroll':
         page = buildPageWithDrawer(

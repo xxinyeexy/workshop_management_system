@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:workshop_management_system/modules/inventory/models/MarketplaceInfo.dart';
 import 'package:workshop_management_system/modules/inventory/providers/InventoryController.dart';
-
+import 'package:workshop_management_system/modules/sidebar.dart'; // Import SidebarMenu
 import 'package:workshop_management_system/routes/route.dart';
 
 class MarketplaceRequestListingPage extends StatefulWidget {
@@ -381,7 +381,7 @@ class _MarketplaceRequestListingPageState
                       child: ElevatedButton(
                         onPressed: () {
                           //Navigator.of(context).pop();
-                          navigateToRequest(listing);
+                          navigateToRequest(context, listing);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.indigo[500],
@@ -412,7 +412,7 @@ class _MarketplaceRequestListingPageState
     );
   }
 
-  void navigateToRequest(MarketplaceInfo listing) {
+  void navigateToRequest(context, MarketplaceInfo listing) {
   AppRouter.navigateTo(
     context,
     AppRoutes.requestDetails,

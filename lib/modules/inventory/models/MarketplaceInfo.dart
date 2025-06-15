@@ -61,7 +61,7 @@ class MarketplaceInfo {
     String? item_name,
     String? item_description,
     int? item_quantity,
-    double? item_cost_per_unit,
+    double? item_costperunit,
     String? item_image,
     ListingStatus? listing_status,
     String? seller_id,
@@ -80,7 +80,7 @@ class MarketplaceInfo {
       item_name: item_name ?? this.item_name,
       item_description: item_description ?? this.item_description,
       item_quantity: item_quantity ?? this.item_quantity,
-      item_costperunit: item_costperunit ?? item_costperunit,
+      item_costperunit: item_costperunit ?? this.item_costperunit,
       item_image: item_image ?? this.item_image,
       listing_status: listing_status ?? this.listing_status,
       seller_id: seller_id ?? this.seller_id,
@@ -130,9 +130,9 @@ class MarketplaceInfo {
       item_name: data['item_name'] ?? '',
       item_description: data['item_description'] ?? '',
       item_quantity: data['item_quantity'] ?? 0,
-      item_costperunit: (data['item_cost_per_unit'] is int)
-          ? (data['item_cost_per_unit'] as int).toDouble()
-          : data['item_cost_per_unit']?.toDouble() ?? 0.0,
+      item_costperunit: (data['item_costperunit'] is int)
+          ? (data['item_costperunit'] as int).toDouble()
+          : data['item_costperunit']?.toDouble() ?? 0.0,
       item_image: data['item_image'] ?? '',
       listing_status: stringToListingStatus(data['listing_status'] ?? 'pending'),
       seller_id: data['seller_id'],
@@ -153,7 +153,7 @@ class MarketplaceInfo {
       'item_name': item_name,
       'item_description': item_description,
       'item_quantity': item_quantity,
-      'item_cost_per_unit': item_costperunit,
+      'item_costperunit': item_costperunit,
       'item_image': item_image,
       'listing_status': listingStatusToString(listing_status),
       'seller_id': seller_id,
