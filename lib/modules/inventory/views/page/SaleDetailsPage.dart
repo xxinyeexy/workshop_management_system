@@ -260,7 +260,7 @@ class _SaleDetailsPageState extends State<SaleDetailsPage> {
                     style: const TextStyle(fontSize: 14),
                   ),
                   const Text(
-                    '123 Mechanic Street Automotive District', ///owner_wordkshop_location
+                    '123 Mechanic Street Automotive District', ///owner_workshop_location
                     style: TextStyle(fontSize: 14),
                   ),
                   const Text(

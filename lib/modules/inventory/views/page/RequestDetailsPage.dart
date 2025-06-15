@@ -277,7 +277,7 @@ void initializeUserId() async {
                   
                   const SizedBox(height: 12),
                   
-                                    // Total Cost
+                  // Total Cost
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
