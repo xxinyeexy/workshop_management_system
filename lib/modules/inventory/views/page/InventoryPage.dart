@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:workshop_management_system/models/InventoryInfo.dart';
 import 'package:workshop_management_system/provider/InventoryController.dart';
-import 'package:workshop_management_system/widgets/sidebar.dart'; // Import SidebarMenu
+import 'package:workshop_management_system/core/widgets/sidebar.dart'; // Import SidebarMenu
 import 'package:workshop_management_system/routes/route.dart';
 
 class InventoryPage extends StatefulWidget {
