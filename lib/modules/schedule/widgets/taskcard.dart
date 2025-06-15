@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../models/taskModel.dart';
+import 'package:workshop_management_system/models/taskModel.dart';
 import 'package:intl/intl.dart';
 
 class TaskCard extends StatelessWidget {

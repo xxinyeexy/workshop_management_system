@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
-import 'package:workshop_management_system/modules/models/InventoryInfo.dart';
-import 'package:workshop_management_system/modules/models/MarketplaceInfo.dart';
+import 'package:workshop_management_system/models/InventoryInfo.dart';
+import 'package:workshop_management_system/models/MarketplaceInfo.dart';
 
 //Page of Manage Inventory Module
 import '../modules/inventory/views/page/InventoryPage.dart';

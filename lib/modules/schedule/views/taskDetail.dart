@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:workshop_management_system/provider/scheduleController.dart';
 import 'package:workshop_management_system/modules/schedule/views/reschedulingForm.dart';
 import 'package:workshop_management_system/modules/schedule/widgets/simpleForemanCard.dart';
-import '../../models/taskModel.dart';
+import '../../../models/taskModel.dart';
 
 class TaskDetailPage extends StatefulWidget {
   final String taskId;

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
-import '../../../models/MarketplaceInfo.dart';
+import '../../../../models/MarketplaceInfo.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:workshop_management_system/provider/InventoryController.dart';
-import 'package:workshop_management_system/modules/models/InventoryInfo.dart'; 
-import 'package:workshop_management_system/modules/sidebar.dart'; // Import SidebarMenu
+import 'package:workshop_management_system/models/InventoryInfo.dart'; 
+import 'package:workshop_management_system/widgets/sidebar.dart'; // Import SidebarMenu
 import 'package:geolocator/geolocator.dart';
 
 
