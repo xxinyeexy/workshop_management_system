@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../models/taskModel.dart';
-import '../widgets/taskCard.dart';
+import '../modules/models/taskModel.dart';
+import '../modules/schedule/widgets/taskCard.dart';
 
 void showCancelTaskDialog({
   required BuildContext context,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/taskModel.dart';
+import '../../models/taskModel.dart';
 import 'package:intl/intl.dart';
 
 class TaskCard extends StatelessWidget {
@@ -22,8 +22,6 @@ class TaskCard extends StatelessWidget {
     switch (status.toLowerCase()) {
       case 'scheduled':
         return const Color(0xFF56CCF2);
-      case 'in progress':
-        return const Color(0xFF2D9CDB);
       case 'completed':
         return Colors.green;
       case 'cancelled':

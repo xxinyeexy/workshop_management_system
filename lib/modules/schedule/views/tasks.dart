@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:workshop_management_system/modules/schedule/models/taskModel.dart';
+import 'package:workshop_management_system/modules/models/taskModel.dart';
 import 'package:workshop_management_system/modules/schedule/views/taskDetail.dart';
 import 'package:workshop_management_system/modules/schedule/widgets/taskCard.dart';
 
