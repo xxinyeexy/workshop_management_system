@@ -34,6 +34,7 @@ class _RequestDetailsPageState extends State<RequestDetailsPage> {
   void initState() {
     super.initState();
     initializeUserId();
+    initializeUserName();
     _quantity = widget.request_item.item_quantity > 0 ? widget.request_item.item_quantity : 1;
   }
 
@@ -43,7 +44,7 @@ void initializeUserId() async {
     current_user_id = await inventoryController.getCurrentUserId();
   }
 
-  void initializeUsername() async {
+  void initializeUserName() async {
     current_user_name = await inventoryController.getCurrentUserName();
   }
 

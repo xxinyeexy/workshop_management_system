@@ -143,34 +143,42 @@ class _SidebarMenuState extends State<SidebarMenu> {
         break;
 
       case 'Inventory':
-      if (userRoleString == 'foreman')
-       {page = const Text(
-          'Inventory is not available for Foreman',
-        );}
+        if (userRoleString == 'foreman') {
+          page = const Center(
+            child: Text(
+              'Inventory is not available for Foreman',
+              style: TextStyle(color: Colors.black, fontSize: 16),
+            ),
+          );
+          break; //
+        }
         page = InventoryPage(
           userRole: userRoleString,
           userName: widget.userName,
           userPosition: widget.userPosition,
-
         );
         break;
 
       case 'Marketplace':
-     
         if (userRoleString == 'foreman') {
-          page = const Text(
-            'Marketplace is not available for Foreman',
+          page = const Center(
+            child: Text(
+              'Marketplace is not available for Foreman',
+              style: TextStyle(
+                color: Colors.black, 
+                fontSize:
+                    16,
+              ),
+            ),
           );
-          break;
+          break; //
         }
         page = Marketplace(
-         userRole: userRoleString,
+          userRole: userRoleString,
           userName: widget.userName,
           userPosition: widget.userPosition,
-
         );
         break;
-
 
       case 'Payroll':
         page = buildPageWithDrawer(
