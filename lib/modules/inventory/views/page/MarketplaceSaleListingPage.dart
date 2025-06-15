@@ -83,9 +83,7 @@ class _MarketplaceSaleListingPageState
     );
   }
 
-  Widget _buildSaleListingCard(MarketplaceInfo listing) {
-    //  Calculate distance if both locations available
-    String? distanceText;
+  String? calculateDistance(MarketplaceInfo listing) {
     if (widget.user_geo_point != null && listing.seller_location != null) {
       double distance = Geolocator.distanceBetween(
         widget.user_geo_point!.latitude,
@@ -93,7 +91,17 @@ class _MarketplaceSaleListingPageState
         listing.seller_location!.latitude,
         listing.seller_location!.longitude,
       );
-      distanceText = formatDistance(distance);
+      return formatDistance(distance);
+    }
+    return null;
+  }
+
+  Widget _buildSaleListingCard(MarketplaceInfo listing) {
+    
+    String? distanceText = calculateDistance(listing);
+
+    if (!selectedQuantities.containsKey(listing.listing_id)) {
+      selectedQuantities[listing.listing_id!] = 1;
     }
 
     return GestureDetector(
@@ -312,13 +320,15 @@ class _MarketplaceSaleListingPageState
   }
 
   void purchase(context, MarketplaceInfo listing) {
+    String? distanceText = calculateDistance(listing);
     AppRouter.navigateTo(
       context,
       AppRoutes.saleDetails,
       arguments: {
         'listing': listing,
         'user_geo_point': widget.user_geo_point,
-        'selected_quantity': (selectedQuantities[listing.listing_id] ?? 1).toInt()
+        'selected_quantity': (selectedQuantities[listing.listing_id] ?? 1).toInt(),
+        'distance': distanceText,
       },
     );
   }

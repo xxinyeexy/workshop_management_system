@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import '../models/taskModel.dart';
-import '../widgets/taskCard.dart';
+import '../modules/models/taskModel.dart';
+import '../modules/schedule/widgets/taskCard.dart';
 
 void showCancelTaskDialog({
   required BuildContext context,
   required TaskModel task,
   required String userRole,
-  required VoidCallback onConfirm, // <-- Add this
+  required VoidCallback onConfirm,
 }) {
   showDialog(
     context: context,
@@ -48,8 +48,8 @@ void showCancelTaskDialog({
               Expanded(
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.pop(context);     // Close dialog first
-                    onConfirm();                // <- Call the real cancel logic
+                    Navigator.pop(context);     
+                    onConfirm();                
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,

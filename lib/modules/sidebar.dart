@@ -144,13 +144,36 @@ class _SidebarMenuState extends State<SidebarMenu> {
 
       case 'Inventory':
         if (userRoleString == 'foreman') {
-          page = const Center(
-            child: Text(
-              'Inventory is not available for Foreman',
-              style: TextStyle(color: Colors.black, fontSize: 16),
+          page = Scaffold(
+            backgroundColor: Colors.white,
+            appBar: AppBar(
+              title: const Text('Inventory'),
+              backgroundColor: Colors.indigo[500],
+              foregroundColor: Colors.white,
+              leading: Builder(
+                builder:
+                    (context) => IconButton(
+                      icon: const Icon(Icons.menu),
+                      onPressed: () => Scaffold.of(context).openDrawer(),
+                    ),
+              ),
+            ),
+            drawer: SidebarMenu(
+              userRole: widget.userRole,
+              userName: widget.userName,
+              userPosition: widget.userPosition,
+              selectedTitle: 'Inventory',
+              onSelectedTitleChanged: widget.onSelectedTitleChanged,
+              originalUserRole: widget.originalUserRole,
+            ),
+            body: const Center(
+              child: Text(
+                'Inventory is not available for Foreman',
+                style: TextStyle(color: Colors.black, fontSize: 16),
+              ),
             ),
           );
-          break; //
+          break;
         }
         page = InventoryPage(
           userRole: userRoleString,
@@ -161,17 +184,36 @@ class _SidebarMenuState extends State<SidebarMenu> {
 
       case 'Marketplace':
         if (userRoleString == 'foreman') {
-          page = const Center(
-            child: Text(
-              'Marketplace is not available for Foreman',
-              style: TextStyle(
-                color: Colors.black, 
-                fontSize:
-                    16,
+          page = Scaffold(
+            backgroundColor: Colors.white,
+            appBar: AppBar(
+              title: const Text('Marketplace'),
+              backgroundColor: Colors.indigo[500],
+              foregroundColor: Colors.white,
+              leading: Builder(
+                builder:
+                    (context) => IconButton(
+                      icon: const Icon(Icons.menu),
+                      onPressed: () => Scaffold.of(context).openDrawer(),
+                    ),
+              ),
+            ),
+            drawer: SidebarMenu(
+              userRole: widget.userRole,
+              userName: widget.userName,
+              userPosition: widget.userPosition,
+              selectedTitle: 'Marketplace',
+              onSelectedTitleChanged: widget.onSelectedTitleChanged,
+              originalUserRole: widget.originalUserRole,
+            ),
+            body: const Center(
+              child: Text(
+                'Marketplace is not available for Foreman',
+                style: TextStyle(color: Colors.black, fontSize: 16),
               ),
             ),
           );
-          break; //
+          break;
         }
         page = Marketplace(
           userRole: userRoleString,

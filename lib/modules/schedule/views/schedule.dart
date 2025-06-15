@@ -9,7 +9,7 @@ import 'package:workshop_management_system/modules/schedule/views/taskDetail.dar
 import 'package:workshop_management_system/modules/schedule/views/tasks.dart';
 import 'package:workshop_management_system/modules/schedule/widgets/foremanCard.dart';
 import 'package:workshop_management_system/modules/schedule/widgets/taskCard.dart';
-import '../models/taskModel.dart';
+import '../../models/taskModel.dart';
 import '../../sidebar.dart';
 
 class RatingService {
@@ -161,7 +161,7 @@ class _ScheduleState extends State<Schedule> {
 
     setState(() {
       showNotification =
-          snapshot.docs.isNotEmpty; // ✅ TRUE only when unread exists
+          snapshot.docs.isNotEmpty;
     });
   }
 
@@ -179,7 +179,7 @@ class _ScheduleState extends State<Schedule> {
     if (role == 'workshop_owner') {
       return data?['fullName'];
     } else if (role == 'foreman') {
-      return data?['workshopName']; // this might be null
+      return data?['workshopName'];
     }
     return null;
   }
@@ -194,14 +194,14 @@ class _ScheduleState extends State<Schedule> {
   Future<void> fetchForemen() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
 
-    // 1. Get current owner's full name
+    // Get current owner's full name
     final ownerDoc =
         await FirebaseFirestore.instance.collection('users').doc(uid).get();
     final ownerName = ownerDoc.data()?['fullName'];
 
     if (ownerName == null) return;
 
-    // 2. Get all foremen assigned to this owner's workshop
+    // Get all foremen assigned to this owner's workshop
     final foremenQuery =
         await FirebaseFirestore.instance
             .collection('users')
@@ -209,7 +209,7 @@ class _ScheduleState extends State<Schedule> {
             .where('workshopName', isEqualTo: ownerName)
             .get();
 
-    // 3. For each foreman, fetch worktime from worktimes collection
+    // For each foreman, fetch worktime from worktimes collection
     List<Map<String, dynamic>> loadedForemen = [];
 
     for (var doc in foremenQuery.docs) {
@@ -264,7 +264,6 @@ class _ScheduleState extends State<Schedule> {
   Future<void> _updateWorkTime() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
 
-    // Use today's date, just to satisfy the DateTime requirements
     final now = DateTime.now();
     final startDateTime = DateTime(
       now.year,
@@ -342,7 +341,6 @@ class _ScheduleState extends State<Schedule> {
   }
 
   void _terminateContract() async {
-    // Show confirmation dialog
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
@@ -386,7 +384,6 @@ class _ScheduleState extends State<Schedule> {
       String currentWorkshopName;
 
       if (widget.userRole.toLowerCase() == 'foreman') {
-        // Foreman is logged in, workshop is associated workshop
         currentWorkshopName = workshopName ?? 'Unknown Workshop';
         foremanName = widget.userName;
 
@@ -401,7 +398,6 @@ class _ScheduleState extends State<Schedule> {
           });
         }
 
-        // ✅ Navigate to blank schedule screen after clearing workshop
         if (mounted) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (_) => const BlankSchedulePage(
@@ -547,7 +543,7 @@ class _ScheduleState extends State<Schedule> {
                         builder: (_) => NotificationsPage(userRole: role),
                       ),
                     );
-                    checkUnreadNotifications(); // 👈 Refresh banner after returning
+                    checkUnreadNotifications();
                   },
                   child: const Text(
                     'Notification',
@@ -791,9 +787,8 @@ class _ScheduleState extends State<Schedule> {
                                       ),
                                 ),
                               );
-                              // ✅ Reload tasks after coming back
                               setState(() {
-                                fetchTasks(); // make sure this re-queries Firestore
+                                fetchTasks();
                               });
                             },
                           ),
@@ -861,14 +856,12 @@ class _ScheduleState extends State<Schedule> {
                           builder:
                               (_) => AssignTaskPage(
                                 foremanId:
-                                    foreman['foremanId'], // ✅ Ensure correct key
+                                    foreman['foremanId'],
                                 foremanName: foreman['name'],
                                 workTime: formattedTime,
                               ),
                         ),
                       );
-
-                      // ✅ Refresh tasks after coming back
                       setState(() {
                         fetchTasks();
                       });
@@ -932,9 +925,8 @@ class _ScheduleState extends State<Schedule> {
                                       ),
                                 ),
                               );
-                              // ✅ Reload tasks after coming back
                               setState(() {
-                                fetchTasks(); // make sure this re-queries Firestore
+                                fetchTasks();
                               });
                             },
                           ),
