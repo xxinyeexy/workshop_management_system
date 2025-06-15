@@ -1,13 +1,10 @@
-// 1. TASK DETAIL PAGE (Updated UI and Logic)
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
-import 'package:workshop_management_system/modules/schedule/controllers/showCancel.dart';
+import 'package:workshop_management_system/provider/scheduleController.dart';
 import 'package:workshop_management_system/modules/schedule/views/reschedulingForm.dart';
-import 'package:workshop_management_system/modules/schedule/views/tasks.dart';
 import 'package:workshop_management_system/modules/schedule/widgets/simpleForemanCard.dart';
-import '../models/taskModel.dart';
+import '../../models/taskModel.dart';
 
 class TaskDetailPage extends StatefulWidget {
   final String taskId;
@@ -105,7 +102,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     final end = (data['taskEndTime'] as Timestamp).toDate();
     final now = DateTime.now();
 
-    final bool ownerCanAct = widget.userRole == 'workshop_owner' && data['taskStatus'] != 'completed' && data['taskStatus'] != 'cancelled';
+    final bool ownerCanAct = widget.userRole == 'workshop_owner' && data['taskStatus'] == 'scheduled';
     final bool foremanCanComplete = widget.userRole == 'foreman' && now.isAfter(start) && data['taskStatus'] == 'scheduled';
 
     final primaryColor = widget.userRole == 'foreman' ? Colors.green : Colors.blue;

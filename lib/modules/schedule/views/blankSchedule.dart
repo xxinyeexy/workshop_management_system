@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:workshop_management_system/modules/schedule/views/notifications.dart';
 import 'package:workshop_management_system/modules/sidebar.dart';
 
 class BlankSchedulePage extends StatefulWidget {
@@ -127,9 +128,19 @@ class _BlankSchedulePageState extends State<BlankSchedulePage> {
               ),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications, color: Colors.amber),
-            onPressed: () {}, // Future feature
+          TextButton(
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => NotificationsPage(userRole: widget.userRole),
+                ),
+              );
+            },
+            child: const Text(
+              'Notification',
+              style: TextStyle(color: Colors.black, fontSize: 16),
+            ),
           ),
         ],
       ),
