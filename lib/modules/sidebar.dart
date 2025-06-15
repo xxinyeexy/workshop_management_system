@@ -51,12 +51,7 @@ class _SidebarMenuState extends State<SidebarMenu> {
   }
 
   void _setWorkshopName() {
-    if (widget.userRole == UserRole.WorkshopOwner) {
-      workshopName = widget.userName;
-    } else {
-      // For demo, assign a fixed workshop name for foreman
-      workshopName = 'xixi workshop'; // Replace with real lookup if needed
-    }
+    workshopName = widget.userName;
   }
 
   void _updatePendingRatingsCount() {

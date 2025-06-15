@@ -130,11 +130,14 @@ class _ScheduleState extends State<Schedule> {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const BlankSchedulePage(
-              userRole: 'foreman',
-              userName: 'John Doe',
-              userPosition: 'Supervisor',
-            )),
+            MaterialPageRoute(
+              builder:
+                  (_) => BlankSchedulePage(
+                    userRole: widget.userRole,
+                    userName: widget.userName,
+                    userPosition: widget.userPosition,
+                  ),
+            ),
           );
         });
       } else {
@@ -160,8 +163,7 @@ class _ScheduleState extends State<Schedule> {
             .get();
 
     setState(() {
-      showNotification =
-          snapshot.docs.isNotEmpty;
+      showNotification = snapshot.docs.isNotEmpty;
     });
   }
 
@@ -400,11 +402,14 @@ class _ScheduleState extends State<Schedule> {
 
         if (mounted) {
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const BlankSchedulePage(
-              userRole: 'foreman',
-              userName: 'John Doe',
-              userPosition: 'Supervisor',
-                    )),
+            MaterialPageRoute(
+              builder:
+                  (_) => const BlankSchedulePage(
+                    userRole: 'foreman',
+                    userName: 'John Doe',
+                    userPosition: 'Supervisor',
+                  ),
+            ),
           );
         }
       } else {
@@ -855,8 +860,7 @@ class _ScheduleState extends State<Schedule> {
                         MaterialPageRoute(
                           builder:
                               (_) => AssignTaskPage(
-                                foremanId:
-                                    foreman['foremanId'],
+                                foremanId: foreman['foremanId'],
                                 foremanName: foreman['name'],
                                 workTime: formattedTime,
                               ),
