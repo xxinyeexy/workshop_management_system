@@ -8,6 +8,7 @@ class RatingDetailPage extends StatefulWidget {
   final String name;
   final String role;
   final Map<String, dynamic>? userData;
+  final String loggedInUserRole;
 
   const RatingDetailPage({
     super.key,
@@ -15,6 +16,7 @@ class RatingDetailPage extends StatefulWidget {
     required this.name,
     required this.role,
     this.userData,
+    required this.loggedInUserRole,
   });
 
   @override
@@ -687,7 +689,7 @@ class _RatingDetailPageState extends State<RatingDetailPage> {
   @override
   Widget build(BuildContext context) {
     final Color primaryColor =
-        widget.role.toLowerCase().contains('foreman')
+        widget.loggedInUserRole.toLowerCase().contains('foreman')
             ? const Color(0xFF2FB668)
             : const Color(0xFF4260DB);
 

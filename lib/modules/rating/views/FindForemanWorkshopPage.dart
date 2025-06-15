@@ -417,6 +417,7 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
                       name: name,
                       role: isForeman ? "Foreman" : "Workshop Owner",
                       userData: userData,
+                      loggedInUserRole: widget.userRole,
                     ),
               ),
             );
