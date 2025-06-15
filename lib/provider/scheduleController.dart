@@ -6,7 +6,7 @@ void showCancelTaskDialog({
   required BuildContext context,
   required TaskModel task,
   required String userRole,
-  required VoidCallback onConfirm, // <-- Add this
+  required VoidCallback onConfirm,
 }) {
   showDialog(
     context: context,
@@ -48,8 +48,8 @@ void showCancelTaskDialog({
               Expanded(
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.pop(context);     // Close dialog first
-                    onConfirm();                // <- Call the real cancel logic
+                    Navigator.pop(context);     
+                    onConfirm();                
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
