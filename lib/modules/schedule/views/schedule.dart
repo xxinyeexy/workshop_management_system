@@ -10,7 +10,7 @@ import 'package:workshop_management_system/modules/schedule/views/tasks.dart';
 import 'package:workshop_management_system/modules/schedule/widgets/foremanCard.dart';
 import 'package:workshop_management_system/modules/schedule/widgets/taskCard.dart';
 import '../../../models/taskModel.dart';
-import '../../sidebar.dart';
+import '../../../widgets/sidebar.dart';
 
 class RatingService {
   static final RatingService _instance = RatingService._internal();

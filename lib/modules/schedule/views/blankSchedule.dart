@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:workshop_management_system/modules/schedule/views/notifications.dart';
-import 'package:workshop_management_system/modules/sidebar.dart';
+import 'package:workshop_management_system/widgets/sidebar.dart';
 
 class BlankSchedulePage extends StatefulWidget {
   final String userRole;

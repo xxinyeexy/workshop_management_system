@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
-import '../../sidebar.dart';
+import '../../../widgets/sidebar.dart';
 import 'package:workshop_management_system/modules/rating/views/RatingDetails.dart';
 import 'package:workshop_management_system/modules/rating/views/RatingListPage.dart';
 import 'package:workshop_management_system/modules/schedule/views/schedule.dart';
