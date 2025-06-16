@@ -27,6 +27,7 @@ class _BlankSchedulePageState extends State<BlankSchedulePage> {
   TimeOfDay endTime = const TimeOfDay(hour: 18, minute: 0);
   bool isSubmitting = false;
 
+  //Handle WorkTime
   Future<void> _selectTime({required bool isStart}) async {
     final picked = await showTimePicker(
       context: context,
@@ -43,6 +44,7 @@ class _BlankSchedulePageState extends State<BlankSchedulePage> {
     }
   }
 
+  //Handle Workshop Applying
   Future<void> _applyWorkshop() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     final workshopName = _workshopController.text.trim();
@@ -56,7 +58,7 @@ class _BlankSchedulePageState extends State<BlankSchedulePage> {
 
     setState(() => isSubmitting = true);
 
-    // 1. Validate that this workshop name exists as a user with role = 'workshop_owner'
+    //Validate that this workshop name exists as a user with role = 'workshop_owner'
     final workshopQuery = await FirebaseFirestore.instance
         .collection('users')
         .where('fullName', isEqualTo: workshopName)
@@ -74,7 +76,7 @@ class _BlankSchedulePageState extends State<BlankSchedulePage> {
 
     final workshopOwnerId = workshopQuery.docs.first.id;
 
-    // 2. Update current foreman's document with selected workshop name
+    //Update current foreman's document with selected workshop name
     await FirebaseFirestore.instance.collection('users').doc(uid).update({
       'workshopName': workshopName,
     });
@@ -89,7 +91,7 @@ class _BlankSchedulePageState extends State<BlankSchedulePage> {
       'endTime': Timestamp.fromDate(endDateTime),
     });
 
-    // 4. Send notification to the owner
+    //Send notification to the owner
     await FirebaseFirestore.instance.collection('notifications').add({
       'userId': workshopOwnerId,
       'title': 'New Foreman Joined',
@@ -107,6 +109,7 @@ class _BlankSchedulePageState extends State<BlankSchedulePage> {
     Navigator.pop(context); // Or navigate to Schedule screen
   }
 
+  //Handle WorkTime
   String _formatTime(TimeOfDay time) {
     final now = DateTime.now();
     final dt = DateTime(now.year, now.month, now.day, time.hour, time.minute);

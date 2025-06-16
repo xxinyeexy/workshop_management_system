@@ -113,6 +113,7 @@ class _ScheduleState extends State<Schedule> {
   List<Map<String, dynamic>> foremen = [];
   bool isContractTerminated = false;
 
+  //Handle WorkTime
   String _formatTimeOfDay(TimeOfDay time) {
     final now = DateTime.now();
     final dt = DateTime(now.year, now.month, now.day, time.hour, time.minute);
@@ -153,6 +154,7 @@ class _ScheduleState extends State<Schedule> {
     fetchForemen();
   }
 
+  //Remind users of new notification
   Future<void> checkUnreadNotifications() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     final snapshot =
@@ -167,6 +169,7 @@ class _ScheduleState extends State<Schedule> {
     });
   }
 
+  //Get WorkshopName
   Future<String?> getWorkshopName() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return null;
@@ -186,6 +189,7 @@ class _ScheduleState extends State<Schedule> {
     return null;
   }
 
+  //Get user role
   Future<String> getUserRole() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
     final userDoc =
@@ -193,6 +197,7 @@ class _ScheduleState extends State<Schedule> {
     return userDoc['role'];
   }
 
+  //Retrieve Workshop's Foreman List
   Future<void> fetchForemen() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
 
@@ -240,6 +245,7 @@ class _ScheduleState extends State<Schedule> {
     });
   }
 
+  //Get WorkTime
   Future<void> fetchWorkTime() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
     final doc =
@@ -263,6 +269,7 @@ class _ScheduleState extends State<Schedule> {
     }
   }
 
+  //Handle WorkTime Updating
   Future<void> _updateWorkTime() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
 
@@ -292,6 +299,7 @@ class _ScheduleState extends State<Schedule> {
     ).showSnackBar(const SnackBar(content: Text("Work time updated")));
   }
 
+  //Handle WorkTime change
   Future<void> _selectTime({required bool isStart}) async {
     final initial = isStart ? startTime! : endTime!;
     final picked = await showTimePicker(context: context, initialTime: initial);
@@ -307,6 +315,7 @@ class _ScheduleState extends State<Schedule> {
     }
   }
 
+  //Retrieve TaskList
   Future<void> fetchTasks() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
     final userDoc =
@@ -342,6 +351,7 @@ class _ScheduleState extends State<Schedule> {
     }
   }
 
+  //Handle Terminate Button function
   void _terminateContract() async {
     final bool? confirmed = await showDialog<bool>(
       context: context,
