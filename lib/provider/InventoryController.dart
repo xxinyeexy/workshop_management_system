@@ -12,15 +12,16 @@ import 'package:workshop_management_system/domain/MarketplaceInfo.dart';
 import 'package:workshop_management_system/routes/route.dart';
 
 class InventoryController {
-   final CollectionReference _inventoryCollection = 
-       FirebaseFirestore.instance.collection('inventory');   //Access to Firestore Inventory Collection
+  final CollectionReference _inventoryCollection = FirebaseFirestore.instance
+      .collection('inventory'); //Access to Firestore Inventory Collection
 
-   bool _has_shown_location_dialog = false;
+  bool _has_shown_location_dialog = false;
 
-      final CollectionReference _marketplaceCollection =
-       FirebaseFirestore.instance.collection('marketplace'); //Access to Firestore Marketplace Collection
+  final CollectionReference _marketplaceCollection = FirebaseFirestore.instance
+      .collection('marketplace'); //Access to Firestore Marketplace Collection
 
-Future<String> getCurrentUserId() async {
+  //get the curent user id from Auth firebase
+  Future<String> getCurrentUserId() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return 'Unknown Workshop';
     final userDoc =
@@ -28,6 +29,7 @@ Future<String> getCurrentUserId() async {
     return userDoc.data()?['uid'] ?? 'Unknown User';
   }
 
+  //get the current user name from Auth Firebase
   Future<String> getCurrentUserName() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return 'Unknown Workshop';
@@ -36,31 +38,31 @@ Future<String> getCurrentUserId() async {
     return userDoc.data()?['fullName'] ?? 'Unknown User';
   }
 
-//Retrieve all inventory items in InventoryInfo (will return in List)
-    Stream<List<InventoryInfo>> getInventory() {   
+  //Handles Inventory Operations
+  //Retrieve all inventory items in InventoryInfo (will return in List)
+  Stream<List<InventoryInfo>> getInventory() {
     return _inventoryCollection
         .orderBy('item_name')
         .snapshots()
         .map(_convertQuerySnapshotToInventoryList);
   }
 
-//Get specific inventory item by Id
+  //Get specific inventory item by Id
   Future<InventoryInfo?> getInventoryInfo(String id) async {
-  try {
-    final docSnap = await _inventoryCollection.doc(id).get();
-    if (!docSnap.exists) return null;
-    return InventoryInfo.fromFirestore(
-        docSnap as DocumentSnapshot<Map<String, dynamic>>);
-  } catch (e) {
-    print('Error reading inventory item: $e');
-    rethrow;
+    try {
+      final docSnap = await _inventoryCollection.doc(id).get();
+      if (!docSnap.exists) return null;
+      return InventoryInfo.fromFirestore(
+        docSnap as DocumentSnapshot<Map<String, dynamic>>,
+      );
+    } catch (e) {
+      print('Error reading inventory item: $e');
+      rethrow;
+    }
   }
-}
 
-///Add a new inventory item to the InventoryInfo
-    Future<DocumentReference> addInventoryItem(InventoryInfo item) {
-      
-
+  ///Add a new inventory item to the InventoryInfo
+  Future<DocumentReference> addInventoryItem(InventoryInfo item) {
     try {
       return _inventoryCollection.add(item.toFirestore());
     } catch (e) {
@@ -69,6 +71,7 @@ Future<String> getCurrentUserId() async {
     }
   }
 
+  //Edit inventory item
   Future<void> editInventoryItem(InventoryInfo item) {
     try {
       if (item.item_id == null) {
@@ -81,48 +84,55 @@ Future<String> getCurrentUserId() async {
     }
   }
 
-  
-
   // Update inventory quantity if the item exists, creates a new inventory item if it doesn't
-  Future<void> updateInventory(String id, String item_name, int newQuantity) async {
-  try {
-    // Query to find an existing inventory item with the same name
-    QuerySnapshot querySnapshot = await _inventoryCollection
-        .where('item_name', isEqualTo: item_name)
-        .limit(1)
-        .get();
+  Future<void> updateInventory(
+    String id,
+    String item_name,
+    int newQuantity,
+  ) async {
+    try {
+      // Query to find an existing inventory item with the same name
+      QuerySnapshot querySnapshot =
+          await _inventoryCollection
+              .where('item_name', isEqualTo: item_name)
+              .limit(1)
+              .get();
 
-    if (querySnapshot.docs.isNotEmpty) {
-      // Item exists, update its quantity
-      DocumentSnapshot existingDoc = querySnapshot.docs.first;
-      int currentQuantity = existingDoc['item_quantity'] ?? 0;
-      
-      await _inventoryCollection.doc(existingDoc.id).update({
-        'item_quantity': currentQuantity + newQuantity
-      });
-    } else {
-      // Item doesn't exist, create a new inventory item
-      await _inventoryCollection.add({
-        'item_name': item_name,
-        'item_quantity': newQuantity,
-        // Add other necessary fields
-        'created_at': FieldValue.serverTimestamp(),
-      });
+      if (querySnapshot.docs.isNotEmpty) {
+        // Item exists, update its quantity
+        DocumentSnapshot existingDoc = querySnapshot.docs.first;
+        int currentQuantity = existingDoc['item_quantity'] ?? 0;
+
+        await _inventoryCollection.doc(existingDoc.id).update({
+          'item_quantity': currentQuantity + newQuantity,
+        });
+      } else {
+        // Item doesn't exist, create a new inventory item
+        await _inventoryCollection.add({
+          'item_name': item_name,
+          'item_quantity': newQuantity,
+          'created_at': FieldValue.serverTimestamp(),
+        });
+      }
+    } catch (e) {
+      print('Error updating/creating inventory: $e');
+      rethrow;
     }
-  } catch (e) {
-    print('Error updating/creating inventory: $e');
-    rethrow;
   }
-}
 
-  List<InventoryInfo> _convertQuerySnapshotToInventoryList(QuerySnapshot snapshot) {
+  //Helper function to return InventoryInfo doc
+  List<InventoryInfo> _convertQuerySnapshotToInventoryList(
+    QuerySnapshot snapshot,
+  ) {
     return snapshot.docs.map((doc) {
-      return InventoryInfo.fromFirestore(doc as DocumentSnapshot<Map<String, dynamic>>);
+      return InventoryInfo.fromFirestore(
+        doc as DocumentSnapshot<Map<String, dynamic>>,
+      );
     }).toList();
   }
 
-//Delete an inventory item from InventoryInfo 
-   Future<void> deleteInventoryItem(String id) {
+  //Delete an inventory item from InventoryInfo
+  Future<void> deleteInventoryItem(String id) {
     try {
       return _inventoryCollection.doc(id).delete();
     } catch (e) {
@@ -132,8 +142,11 @@ Future<String> getCurrentUserId() async {
   }
 
   //Handles Marketplace Operation
-  Stream<List<MarketplaceInfo>> getSaleListingsByGeoPoint(GeoPoint userLocation) {
-    const double radiusInKm = 20.0;
+  //Get sale listing within 100km
+  Stream<List<MarketplaceInfo>> getSaleListingsByGeoPoint(
+    GeoPoint userLocation,
+  ) {
+    const double radiusInKm = 100.0;
     return _marketplaceCollection
         .where('listing_type', isEqualTo: 'sale')
         .where('listing_status', isEqualTo: 'pending')
@@ -142,6 +155,7 @@ Future<String> getCurrentUserId() async {
         .map((snapshot) {
           final allListings = convertQuerySnapshotToMarketplaceList(snapshot);
           return allListings.where((listing) {
+            //calculate distance between geopoint
             if (listing.seller_location == null) return false;
             final distanceInMeters = Geolocator.distanceBetween(
               userLocation.latitude,
@@ -154,6 +168,7 @@ Future<String> getCurrentUserId() async {
         });
   }
 
+ //get all sale listings
   Stream<List<MarketplaceInfo>> getSaleListings() {
     return _marketplaceCollection
         .where('listing_type', isEqualTo: 'sale')
@@ -163,8 +178,7 @@ Future<String> getCurrentUserId() async {
         .map(convertQuerySnapshotToMarketplaceList);
   }
 
-  
-
+  //Get all request listings
   Stream<List<MarketplaceInfo>> getRequestListings() {
     return _marketplaceCollection
         .where('listing_type', isEqualTo: 'request')
@@ -174,8 +188,11 @@ Future<String> getCurrentUserId() async {
         .map(convertQuerySnapshotToMarketplaceList);
   }
 
-  Stream<List<MarketplaceInfo>> getRequestListingsByGeoPoint(GeoPoint userLocation) {
-    const double radiusInKm = 20.0;
+  //Get request listings within 100km
+  Stream<List<MarketplaceInfo>> getRequestListingsByGeoPoint(
+    GeoPoint userLocation,
+  ) {
+    const double radiusInKm = 100.0;
     return _marketplaceCollection
         .where('listing_type', isEqualTo: 'request')
         .where('listing_status', isEqualTo: 'pending')
@@ -185,6 +202,7 @@ Future<String> getCurrentUserId() async {
           final allListings = convertQuerySnapshotToMarketplaceList(snapshot);
           return allListings.where((listing) {
             if (listing.buyer_location == null) return false;
+            //calculate the distance between geopoint
             final distanceInMeters = Geolocator.distanceBetween(
               userLocation.latitude,
               userLocation.longitude,
@@ -196,6 +214,7 @@ Future<String> getCurrentUserId() async {
         });
   }
 
+  //Add a new listing to MarketplaceInfo (sale/request)
   Future<DocumentReference> createListing(MarketplaceInfo listing) {
     try {
       return _marketplaceCollection.add(listing.toFirestore());
@@ -204,11 +223,16 @@ Future<String> getCurrentUserId() async {
     }
   }
 
-  
-
   //update seller info, payment status and listing status
-  Future<void> completeRequestListing(String id, String current_user_id,  String current_user_name, GeoPoint? user_geo_point,
-      {String? seller_id, String? seller_name, GeoPoint? seller_location}) async {
+  Future<void> completeRequestListing(
+    String id,
+    String current_user_id,
+    String current_user_name,
+    GeoPoint? user_geo_point, {
+    String? seller_id,
+    String? seller_name,
+    GeoPoint? seller_location,
+  }) async {
     try {
       DocumentSnapshot doc = await _marketplaceCollection.doc(id).get();
       if (!doc.exists) {
@@ -216,7 +240,8 @@ Future<String> getCurrentUserId() async {
       }
 
       MarketplaceInfo listing = MarketplaceInfo.fromFirestore(
-          doc as DocumentSnapshot<Map<String, dynamic>>);
+        doc as DocumentSnapshot<Map<String, dynamic>>,
+      );
 
       final updatedListing = listing.copyWith(
         listing_type: ListingType.request,
@@ -228,15 +253,24 @@ Future<String> getCurrentUserId() async {
         updated_at: DateTime.now(),
       );
 
-      return _marketplaceCollection.doc(id).update(updatedListing.toFirestore());
+      return _marketplaceCollection
+          .doc(id)
+          .update(updatedListing.toFirestore());
     } catch (e) {
       rethrow;
     }
   }
 
-//update buyer info, payment status and listing status
-  Future<void> completeSaleListing(String id, String current_user_id, String current_user_name, GeoPoint? user_geo_point,
-      {String? buyer_id, String? buyer_name, GeoPoint? buyer_location}) async {
+  //update buyer info, payment status and listing status
+  Future<void> completeSaleListing(
+    String id,
+    String current_user_id,
+    String current_user_name,
+    GeoPoint? user_geo_point, {
+    String? buyer_id,
+    String? buyer_name,
+    GeoPoint? buyer_location,
+  }) async {
     try {
       DocumentSnapshot doc = await _marketplaceCollection.doc(id).get();
       if (!doc.exists) {
@@ -244,7 +278,8 @@ Future<String> getCurrentUserId() async {
       }
 
       MarketplaceInfo listing = MarketplaceInfo.fromFirestore(
-          doc as DocumentSnapshot<Map<String, dynamic>>);
+        doc as DocumentSnapshot<Map<String, dynamic>>,
+      );
 
       final updatedListing = listing.copyWith(
         listing_type: ListingType.sale,
@@ -256,15 +291,22 @@ Future<String> getCurrentUserId() async {
         updated_at: DateTime.now(),
       );
 
-      return _marketplaceCollection.doc(id).update(updatedListing.toFirestore());
+      return _marketplaceCollection
+          .doc(id)
+          .update(updatedListing.toFirestore());
     } catch (e) {
       rethrow;
     }
   }
-
-  List<MarketplaceInfo> convertQuerySnapshotToMarketplaceList(QuerySnapshot snapshot) {
+  
+  //Helper function to return Marketplace Info document
+  List<MarketplaceInfo> convertQuerySnapshotToMarketplaceList(
+    QuerySnapshot snapshot,
+  ) {
     return snapshot.docs.map((doc) {
-      return MarketplaceInfo.fromFirestore(doc as DocumentSnapshot<Map<String, dynamic>>);
+      return MarketplaceInfo.fromFirestore(
+        doc as DocumentSnapshot<Map<String, dynamic>>,
+      );
     }).toList();
   }
 
@@ -484,8 +526,4 @@ Future<String> getCurrentUserId() async {
       ),
     );
   }
-
-  
-
-  
-} 
+}

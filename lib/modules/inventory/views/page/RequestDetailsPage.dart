@@ -182,7 +182,7 @@ void initializeUserId() async {
                           ),
                         ),
                         Text(
-                          '(20 km distance)',
+                          widget.distance != null ? '(${widget.distance})' : '(Distance unavailable)',
                           style: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 14,
