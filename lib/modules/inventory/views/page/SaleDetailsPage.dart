@@ -39,11 +39,11 @@ class _SaleDetailsPageState extends State<SaleDetailsPage> {
   @override
   void initState() {
     super.initState();
-    // Initialize the sale item and selected quantity from widget parameters
+    
     _sale_item = widget.sale_item;
     selected_quantity = widget.selected_quantity;
     
-    // Initialize user data
+    // Initialize user data, get user id and user name
     _initializeUserData();
   }
 
@@ -61,7 +61,7 @@ class _SaleDetailsPageState extends State<SaleDetailsPage> {
   }
 
   double get _totalCost => selected_quantity * (_sale_item?.item_costperunit ?? 0);
-
+  //Calculate the total cost = quantity * item cost per unit
  
 
   void cancelRequest() {
@@ -221,7 +221,7 @@ class _SaleDetailsPageState extends State<SaleDetailsPage> {
                     fontSize: 14,
                   ),
                 ),
-                // Use the passed distance instead of hardcoded value
+               
                 Text(
                   widget.distance != null ? '(${widget.distance})' : '(Distance unavailable)',
                   style: TextStyle(
