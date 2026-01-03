@@ -3,17 +3,22 @@ import 'package:hive/hive.dart';
 import '../../../../domain/MarketplaceInfo.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:workshop_management_system/provider/InventoryController.dart';
+<<<<<<< HEAD
 import 'package:workshop_management_system/domain/InventoryInfo.dart'; 
+=======
+import 'package:workshop_management_system/domain/InventoryInfo.dart';
+import 'package:workshop_management_system/core/widgets/sidebar.dart'; // Import SidebarMenu
+>>>>>>> 9a45a3f67fb4c1f06ad6c57dbae35994165c3365
 import 'package:geolocator/geolocator.dart';
-
 
 class RequestDetailsPage extends StatefulWidget {
   final MarketplaceInfo request_item;
   final GeoPoint? user_geo_point;
-  final String? distance; 
+  final String? distance;
 
-  const RequestDetailsPage({super.key, 
-    
+  const RequestDetailsPage({
+    super.key,
+
     required this.request_item,
     this.user_geo_point,
     this.distance,
@@ -24,7 +29,7 @@ class RequestDetailsPage extends StatefulWidget {
 }
 
 class _RequestDetailsPageState extends State<RequestDetailsPage> {
-    final InventoryController inventoryController = InventoryController();
+  final InventoryController inventoryController = InventoryController();
 
   bool _isProcessing = false;
   int _quantity = 1;
@@ -34,14 +39,18 @@ class _RequestDetailsPageState extends State<RequestDetailsPage> {
   @override
   void initState() {
     super.initState();
-    initializeUserId();
-    initializeUserName();
-    _quantity = widget.request_item.item_quantity > 0 ? widget.request_item.item_quantity : 1;
+    initializeUserId();  //get Current User id
+    initializeUserName();  //Get Current User name
+    _quantity =
+        widget.request_item.item_quantity > 0
+            ? widget.request_item.item_quantity
+            : 1;
   }
 
-  double get _totalCost => _quantity * widget.request_item.item_costperunit;
+  double get _totalCost => _quantity * widget.request_item.item_costperunit;  
+  //Calculate the total cost = quantity * item cost per unit
 
-void initializeUserId() async {
+  void initializeUserId() async {
     current_user_id = await inventoryController.getCurrentUserId();
   }
 
@@ -54,57 +63,56 @@ void initializeUserId() async {
   }
 
   void proceedToPayment() async {
-  setState(() {
-    _isProcessing = true;
-  });
+    setState(() {
+      _isProcessing = true;
+    });
 
-  try {
-    // Update inventory quantity if inventory item existed, create new inventory item if not
-    await inventoryController.updateInventory(
-      widget.request_item.listing_id!, 
-      widget.request_item.item_name,
-      _quantity,
-    );
+    try {
+      // Update inventory quantity if inventory item existed, create new inventory item if not
+      await inventoryController.updateInventory(
+        widget.request_item.listing_id!,
+        widget.request_item.item_name,
+        _quantity,
+      );
 
-    // Complete the listing by updating the payment status, listing status and buyer details
-    await inventoryController.completeRequestListing(
-      widget.request_item.listing_id!,
-      current_user_id,
-      current_user_name,
-      widget.user_geo_point,
-    );
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Payment processed successfully'),
-          backgroundColor: Colors.green,
-        )
+      // Complete the listing by updating the payment status, listing status and buyer details
+      await inventoryController.completeRequestListing(
+        widget.request_item.listing_id!,
+        current_user_id,
+        current_user_name,
+        widget.user_geo_point,
       );
-      Navigator.pop(context);
-    }
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error processing payment: $e'),
-          backgroundColor: Colors.red,
-        )
-      );
-    }
-  } finally {
-    if (mounted) {
-      setState(() {
-        _isProcessing = false;
-      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Payment processed successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error processing payment: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: const Text(
@@ -137,26 +145,27 @@ void initializeUserId() async {
                       color: Colors.grey[300],
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: ((widget.request_item.item_image ?? '').isNotEmpty)
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: Image.network(
-                              widget.request_item.item_image ?? '',
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return const Icon(
-                                  Icons.image_not_supported,
-                                  color: Colors.grey,
-                                  size: 40,
-                                );
-                              },
+                    child:
+                        ((widget.request_item.item_image ?? '').isNotEmpty)
+                            ? ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: Image.network(
+                                widget.request_item.item_image ?? '',
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(
+                                    Icons.image_not_supported,
+                                    color: Colors.grey,
+                                    size: 40,
+                                  );
+                                },
+                              ),
+                            )
+                            : const Icon(
+                              Icons.inventory_2,
+                              color: Colors.grey,
+                              size: 40,
                             ),
-                          )
-                        : const Icon(
-                            Icons.inventory_2,
-                            color: Colors.grey,
-                            size: 40,
-                          ),
                   ),
                   const SizedBox(width: 16),
                   // Item details
@@ -171,7 +180,7 @@ void initializeUserId() async {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                       
+
                         const SizedBox(height: 4),
                         Text(
                           'From: ${widget.request_item.seller_name}',
@@ -181,7 +190,9 @@ void initializeUserId() async {
                           ),
                         ),
                         Text(
-                          '(20 km distance)',
+                          widget.distance != null
+                              ? '(${widget.distance})'
+                              : '(Distance unavailable)',
                           style: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 14,
@@ -193,9 +204,9 @@ void initializeUserId() async {
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 8),
-            
+
             // Workshop Address
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -209,10 +220,7 @@ void initializeUserId() async {
                 children: [
                   const Text(
                     'Workshop Address',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -230,9 +238,9 @@ void initializeUserId() async {
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Order Details
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -255,17 +263,14 @@ void initializeUserId() async {
                       ),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 12),
-                  
+
                   // Unit Price
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Unit Price:',
-                        style: TextStyle(fontSize: 16),
-                      ),
+                      const Text('Unit Price:', style: TextStyle(fontSize: 16)),
                       Text(
                         'RM ${widget.request_item.item_costperunit.toStringAsFixed(2)}',
                         style: const TextStyle(
@@ -275,17 +280,14 @@ void initializeUserId() async {
                       ),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 12),
-                  
-                                    // Total Cost
+
+                  // Total Cost
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Total Cost:',
-                        style: TextStyle(fontSize: 16),
-                      ),
+                      const Text('Total Cost:', style: TextStyle(fontSize: 16)),
                       Text(
                         'RM ${_totalCost.toStringAsFixed(2)}',
                         style: TextStyle(
@@ -299,9 +301,9 @@ void initializeUserId() async {
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // Action Buttons
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -322,15 +324,14 @@ void initializeUserId() async {
                       child: const Text('Cancel Request'),
                     ),
                   ),
-                  
+
                   const SizedBox(width: 16),
-                  
+
                   // Proceed Button
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: _isProcessing 
-                          ? null 
-                          : () => proceedToPayment(),
+                      onPressed:
+                          _isProcessing ? null : () => proceedToPayment(),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.indigo[500],
                         foregroundColor: Colors.white,
@@ -339,24 +340,25 @@ void initializeUserId() async {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: _isProcessing
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text('Proceed to Payment'),
+                      child:
+                          _isProcessing
+                              ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                              : const Text('Proceed to Payment'),
                     ),
                   ),
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // Payment Options
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -370,10 +372,7 @@ void initializeUserId() async {
                 children: [
                   const Text(
                     'Payment Options',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   const SizedBox(height: 16),
                   Row(
@@ -420,7 +419,7 @@ void initializeUserId() async {
                           ),
                         ],
                       ),
-                      
+
                       // DuitNow
                       Column(
                         children: [
@@ -456,10 +455,7 @@ void initializeUserId() async {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          const Text(
-                            'DuitNow',
-                            style: TextStyle(fontSize: 14),
-                          ),
+                          const Text('DuitNow', style: TextStyle(fontSize: 14)),
                         ],
                       ),
                     ],
@@ -467,7 +463,7 @@ void initializeUserId() async {
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 24),
           ],
         ),
