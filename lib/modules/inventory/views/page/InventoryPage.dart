@@ -4,7 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:workshop_management_system/domain/InventoryInfo.dart';
 import 'package:workshop_management_system/provider/InventoryController.dart';
-import 'package:workshop_management_system/core/widgets/sidebar.dart'; // Import SidebarMenu
 import 'package:workshop_management_system/routes/route.dart';
 
 class InventoryPage extends StatefulWidget {
@@ -37,19 +36,6 @@ class _InventoryPageState extends State<InventoryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      drawer: SidebarMenu(
-              userRole:
-                  widget.userRole.toLowerCase() == 'foreman'
-                      ? UserRole.Foreman
-                      : UserRole.WorkshopOwner,
-              userName: widget.userName,
-              userPosition: widget.userPosition,
-              selectedTitle: 'Inventory', 
-              originalUserRole: widget.userRole,
-              onSelectedTitleChanged: (title) {
-                // Optional: sync state or navigation logic here
-              },
-            ),
       backgroundColor: Colors.grey[100], 
       appBar: AppBar(
         title: const Text(
@@ -58,15 +44,6 @@ class _InventoryPageState extends State<InventoryPage> {
         ),
         backgroundColor: Colors.indigo[500], 
         elevation: 0,
-        leading: Builder(
-          builder:
-              (context) => IconButton(
-                icon: const Icon(Icons.menu, color: Colors.white),
-                onPressed: () {
-                  Scaffold.of(context).openDrawer(); // Alternative method
-                },
-              ),
-        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.add, color: Colors.white),

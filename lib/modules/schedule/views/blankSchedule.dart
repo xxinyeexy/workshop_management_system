@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:workshop_management_system/modules/schedule/views/notifications.dart';
-import 'package:workshop_management_system/core/widgets/sidebar.dart';
 
 class BlankSchedulePage extends StatefulWidget {
   final String userRole;
@@ -121,15 +120,9 @@ class _BlankSchedulePageState extends State<BlankSchedulePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Schedule', style: TextStyle(color: Colors.white)),
+        automaticallyImplyLeading: false,
         backgroundColor: Colors.green,
         centerTitle: true,
-        leading: Builder(
-          builder:
-              (context) => IconButton(
-                icon: const Icon(Icons.menu),
-                onPressed: () => Scaffold.of(context).openDrawer(),
-              ),
-        ),
         actions: [
           TextButton(
             onPressed: () async {
@@ -146,19 +139,6 @@ class _BlankSchedulePageState extends State<BlankSchedulePage> {
             ),
           ),
         ],
-      ),
-      drawer: SidebarMenu(
-        userRole:
-            widget.userRole.toLowerCase() == 'foreman'
-                ? UserRole.Foreman
-                : UserRole.WorkshopOwner,
-        userName: widget.userName,
-        userPosition: widget.userPosition,
-        selectedTitle: 'Schedule',
-        originalUserRole: widget.userRole,
-        onSelectedTitleChanged: (title) {
-          // Optional: sync state or navigation logic here
-        },
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),

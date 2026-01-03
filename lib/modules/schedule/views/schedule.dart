@@ -10,7 +10,6 @@ import 'package:workshop_management_system/modules/schedule/views/tasks.dart';
 import 'package:workshop_management_system/modules/schedule/widgets/foremanCard.dart';
 import 'package:workshop_management_system/modules/schedule/widgets/taskCard.dart';
 import '../../../domain/taskModel.dart';
-import '../../../core/widgets/sidebar.dart';
 
 class RatingService {
   static final RatingService _instance = RatingService._internal();
@@ -533,6 +532,7 @@ class _ScheduleState extends State<Schedule> {
               userRole == 'foreman' ? Colors.green : Colors.blue;
           return Scaffold(
             appBar: AppBar(
+              automaticallyImplyLeading: false,
               title: const Text(
                 'Schedule',
                 style: TextStyle(
@@ -541,13 +541,6 @@ class _ScheduleState extends State<Schedule> {
                 ),
               ),
               backgroundColor: primaryColor,
-              leading: Builder(
-                builder:
-                    (context) => IconButton(
-                      icon: const Icon(Icons.menu),
-                      onPressed: () => Scaffold.of(context).openDrawer(),
-                    ),
-              ),
               actions: [
                 TextButton(
                   onPressed: () async {
@@ -566,19 +559,6 @@ class _ScheduleState extends State<Schedule> {
                   ),
                 ),
               ],
-            ),
-            drawer: SidebarMenu(
-              userRole:
-                  widget.userRole.toLowerCase() == 'foreman'
-                      ? UserRole.Foreman
-                      : UserRole.WorkshopOwner,
-              userName: widget.userName,
-              userPosition: widget.userPosition,
-              selectedTitle: 'Schedule',
-              originalUserRole: widget.userRole,
-              onSelectedTitleChanged: (title) {
-                // Optional: sync state or navigation logic here
-              },
             ),
             body: ListView(
               padding: const EdgeInsets.all(16),

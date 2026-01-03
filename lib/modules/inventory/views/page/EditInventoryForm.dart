@@ -5,7 +5,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:workshop_management_system/domain/InventoryInfo.dart';
 import 'package:workshop_management_system/provider/InventoryController.dart';
-import 'package:workshop_management_system/core/widgets/sidebar.dart'; // Import SidebarMenu
 import 'package:workshop_management_system/routes/route.dart';
 
 class EditInventoryPage extends StatefulWidget {

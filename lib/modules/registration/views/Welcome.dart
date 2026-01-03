@@ -20,7 +20,7 @@ class WelcomeScreen extends StatelessWidget {
               const SizedBox(height: 30),
               ElevatedButton(
                 onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen())),
-                child: const Text("Login"),
+                child: const Text("Login",style: TextStyle(color: Colors.blue),),
               ),
               TextButton(
                 onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())),

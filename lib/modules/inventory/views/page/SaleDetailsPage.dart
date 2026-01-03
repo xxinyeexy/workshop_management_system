@@ -4,7 +4,6 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../../../../domain/MarketplaceInfo.dart';
 import '../../../../domain/InventoryInfo.dart';
 import 'package:workshop_management_system/provider/InventoryController.dart';
-import 'package:workshop_management_system/core/widgets/sidebar.dart'; // Import SidebarMenu
 import 'package:geolocator/geolocator.dart';
 
 

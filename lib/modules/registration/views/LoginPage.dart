@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:workshop_management_system/core/widgets/btmNavigationMenu.dart';
 import 'package:workshop_management_system/modules/schedule/views/schedule.dart';
 import 'package:workshop_management_system/modules/registration/views/SignUpPage.dart';
 
@@ -73,7 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
         context,
         MaterialPageRoute(
           builder:
-              (_) => Schedule(
+              (_) => BtmNavigationMenu(
                 userName: userName,
                 userRole: userRole,
                 userPosition: userPosition,

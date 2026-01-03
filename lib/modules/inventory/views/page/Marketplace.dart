@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'MarketplaceSaleListingPage.dart';
 import 'MarketplaceRequestListingPage.dart';
 import 'package:workshop_management_system/routes/route.dart';
-import 'package:workshop_management_system/core/widgets/sidebar.dart'; // Import SidebarMenu
 import 'package:workshop_management_system/provider/InventoryController.dart';
 
 import 'package:hive_flutter/hive_flutter.dart';
@@ -155,18 +154,6 @@ class _MarketplaceState extends State<Marketplace>
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffold_key,
-      drawer: SidebarMenu(
-        userRole: widget.userRole.toLowerCase() == 'foreman'
-            ? UserRole.Foreman
-            : UserRole.WorkshopOwner,
-        userName: widget.userName,
-        userPosition: widget.userPosition,
-        selectedTitle: 'Marketplace',
-        originalUserRole: widget.userRole,
-        onSelectedTitleChanged: (title) {
-          // Optional: sync state or navigation logic here
-        },
-      ),
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: const Text(
@@ -175,14 +162,6 @@ class _MarketplaceState extends State<Marketplace>
         ),
         backgroundColor: Colors.indigo[500],
         elevation: 0,
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onPressed: () {
-              Scaffold.of(context).openDrawer();
-            },
-          ),
-        ),
         bottom: TabBar(
           controller: _tab_controller,
           indicatorColor: Colors.white,

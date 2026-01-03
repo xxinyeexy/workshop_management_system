@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:workshop_management_system/core/widgets/btmNavigationMenu.dart';
 import 'dart:async';
-import '../../../core/widgets/sidebar.dart';
 import 'package:workshop_management_system/modules/rating/views/RatingDetails.dart';
 import 'package:workshop_management_system/modules/rating/views/RatingListPage.dart';
 import 'package:workshop_management_system/modules/schedule/views/schedule.dart';
@@ -12,7 +12,7 @@ class FindForemanWorkshopPage extends StatefulWidget {
   final String userName;
   final String? originalUserRole;
   final String? userPosition;
-  final UserRole? enumUserRole;
+  final UserRole enumUserRole;
 
   const FindForemanWorkshopPage({
     super.key,
@@ -20,7 +20,7 @@ class FindForemanWorkshopPage extends StatefulWidget {
     required this.userName,
     this.originalUserRole,
     this.userPosition,
-    this.enumUserRole,
+    required this.enumUserRole,
   });
 
   @override
@@ -46,18 +46,6 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
           ? const Color(0xFF2FB668)
           : const Color(0xFF4260DB);
 
-  UserRole _getUserRole(String role) {
-    switch (role.toLowerCase()) {
-      case 'foreman':
-        return UserRole.Foreman;
-      case 'workshop':
-      case 'workshop owner':
-      case 'workshopowner':
-        return UserRole.WorkshopOwner;
-      default:
-        return UserRole.WorkshopOwner;
-    }
-  }
 
   String _getUserPosition(String role) {
     switch (role.toLowerCase()) {
@@ -530,17 +518,9 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: primaryColor,
         elevation: 0,
-        leading: Builder(
-          builder:
-              (context) => IconButton(
-                icon: const Icon(Icons.menu, color: Colors.white),
-                onPressed: () {
-                  Scaffold.of(context).openDrawer();
-                },
-              ),
-        ),
         title: const Text(
           "Find Foreman / Workshop",
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
@@ -636,19 +616,6 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
             ),
           ),
         ],
-      ),
-      drawer: SidebarMenu(
-        userRole:
-            widget.enumUserRole ??
-            _getUserRole(widget.originalUserRole ?? widget.userRole),
-        userName: widget.userName,
-        userPosition:
-            widget.userPosition ??
-            _getUserPosition(widget.originalUserRole ?? widget.userRole),
-        selectedTitle: 'Ratings',
-        originalUserRole:
-            widget.originalUserRole ?? _getOriginalUserRole(widget.userRole),
-        onSelectedTitleChanged: (title) {},
       ),
       body: SafeArea(
         child: Center(

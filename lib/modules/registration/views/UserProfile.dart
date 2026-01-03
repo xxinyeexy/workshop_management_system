@@ -1,22 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:workshop_management_system/core/widgets/sidebar.dart'; // Import SidebarMenu
+import 'package:workshop_management_system/modules/registration/views/LoginPage.dart';
 
 class UserProfilePage extends StatefulWidget {
   final String userRole;
   final String userName;
   final String userPosition;
-  final ValueChanged<String>? onSelectedTitleChanged;
-  final String? originalUserRole;
 
   const UserProfilePage({
     super.key,
     required this.userRole,
     required this.userName,
     required this.userPosition,
-    this.onSelectedTitleChanged,
-    this.originalUserRole,
   });
 
   @override
@@ -24,329 +20,254 @@ class UserProfilePage extends StatefulWidget {
 }
 
 class _UserProfilePageState extends State<UserProfilePage> {
-  final _formKey = GlobalKey<FormState>();
-  final TextEditingController _fullNameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _phoneNumberController = TextEditingController();
-  final TextEditingController _workshopNameController = TextEditingController();
-  final TextEditingController _workshopAddressController =
-      TextEditingController();
-  final TextEditingController _bankNameController = TextEditingController();
-  final TextEditingController _accountNumberController =
-      TextEditingController();
+  final _formKey = GlobalKey<FormState>(debugLabel: 'profile_form');
 
-  String _userRole = '';
-  bool _isLoading = true;
-  String? _userId;
+  final _fullNameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _workshopNameCtrl = TextEditingController();
+  final _workshopAddressCtrl = TextEditingController();
+  final _bankNameCtrl = TextEditingController();
+  final _accountNumberCtrl = TextEditingController();
+
+  bool _loading = true;
+  String _role = '';
+  String? _uid;
 
   @override
   void initState() {
     super.initState();
-    _fetchUserData();
+    _loadUser();
   }
 
   @override
   void dispose() {
-    _fullNameController.dispose();
-    _emailController.dispose();
-    _phoneNumberController.dispose();
-    _workshopNameController.dispose();
-    _workshopAddressController.dispose();
-    _bankNameController.dispose();
-    _accountNumberController.dispose();
+    _fullNameCtrl.dispose();
+    _emailCtrl.dispose();
+    _phoneCtrl.dispose();
+    _workshopNameCtrl.dispose();
+    _workshopAddressCtrl.dispose();
+    _bankNameCtrl.dispose();
+    _accountNumberCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _fetchUserData() async {
-    setState(() {
-      _isLoading = true;
-    });
-
+  Future<void> _loadUser() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      // Handle no user logged in
-      setState(() {
-        _isLoading = false;
-      });
-      return;
-    }
+    if (user == null) return;
 
-    _userId = user.uid;
+    _uid = user.uid;
 
     try {
-      final userDoc =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .get();
-
-      if (userDoc.exists) {
-        final data = userDoc.data();
-        _fullNameController.text = data?['fullName'] ?? '';
-        _emailController.text = data?['email'] ?? '';
-        _phoneNumberController.text = data?['phoneNumber'] ?? '';
-        _userRole = data?['role'] ?? '';
-        print('DEBUG: Fetched user role: $_userRole');
-
-        if (_userRole.toLowerCase() == 'workshop_owner') {
-          _workshopNameController.text = data?['workshopName'] ?? '';
-          _workshopAddressController.text = data?['workshopAddress'] ?? '';
-          print('DEBUG: Fetched workshopName: ${_workshopNameController.text}');
-          print(
-            'DEBUG: Fetched workshopAddress: ${_workshopAddressController.text}',
-          );
-        } else if (_userRole.toLowerCase() == 'foreman') {
-          _bankNameController.text = data?['bankName'] ?? '';
-          _accountNumberController.text = data?['accountNumber'] ?? '';
-        }
-      } else {
-        // Populate with FirebaseAuth email if no Firestore doc
-        _emailController.text = user.email ?? '';
-      }
-    } catch (e) {
-      print('Error fetching user data: $e');
-      // Show error message
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error fetching user data: $e')));
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _saveChanges() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    if (_userId == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('User not logged in.')));
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final userRef = FirebaseFirestore.instance
+      final snap = await FirebaseFirestore.instance
           .collection('users')
-          .doc(_userId);
-      final prevUserSnapshot = await userRef.get();
-      final prevFullName = prevUserSnapshot['fullName'] ?? '';
+          .doc(user.uid)
+          .get();
 
-      final newFullName = _fullNameController.text;
+      if (!snap.exists) return;
 
-      final Map<String, dynamic> updateData = {
-        'fullName': newFullName,
-        'email': _emailController.text,
-        'phoneNumber': _phoneNumberController.text,
-        'role': _userRole, // Ensure role is saved
-      };
+      final data = snap.data()!;
+      _fullNameCtrl.text = data['fullName'] ?? '';
+      _emailCtrl.text = data['email'] ?? '';
+      _phoneCtrl.text = data['phoneNumber'] ?? '';
+      _role = (data['role'] ?? '').toString().toLowerCase();
 
-      if (_userRole.toLowerCase() == 'workshop_owner') {
-        updateData['workshopName'] = _workshopNameController.text;
-        updateData['workshopAddress'] = _workshopAddressController.text;
-
-        // 🔁 Step 1: Update tasks where ownerId == currentUser.uid
-        final tasksQuery = await FirebaseFirestore.instance
-            .collection('tasks')
-            .where('ownerId', isEqualTo: _userId)
-            .get();
-
-        for (var doc in tasksQuery.docs) {
-          await doc.reference.update({'workshopName': newFullName});
-        }
-
-        // 🔁 Step 2: Update foremen users whose workshopName == prev full name
-        final usersQuery = await FirebaseFirestore.instance
-            .collection('users')
-            .where('role', isEqualTo: 'foreman')
-            .where('workshopName', isEqualTo: prevFullName)
-            .get();
-
-        for (var doc in usersQuery.docs) {
-          await doc.reference.update({'workshopName': newFullName});
-        }
-
-      } else if (_userRole.toLowerCase() == 'foreman') {
-        updateData['bankName'] = _bankNameController.text;
-        updateData['accountNumber'] = _accountNumberController.text;
+      if (_role == 'workshop_owner') {
+        _workshopNameCtrl.text = data['workshopName'] ?? '';
+        _workshopAddressCtrl.text = data['workshopAddress'] ?? '';
+      } else if (_role == 'foreman') {
+        _bankNameCtrl.text = data['bankName'] ?? '';
+        _accountNumberCtrl.text = data['accountNumber'] ?? '';
       }
-
-      await userRef.set(updateData, SetOptions(merge: true));
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated successfully!')),
-      );
-    } catch (e) {
-      print('Error saving user data: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error saving profile: $e')));
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _loading = false);
     }
   }
 
-  Widget _buildTextField({
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate() || _uid == null) return;
+
+    setState(() => _loading = true);
+
+    final update = {
+      'fullName': _fullNameCtrl.text.trim(),
+      'phoneNumber': _phoneCtrl.text.trim(),
+      'role': _role,
+    };
+
+    if (_role == 'workshop_owner') {
+      update['workshopName'] = _workshopNameCtrl.text.trim();
+      update['workshopAddress'] = _workshopAddressCtrl.text.trim();
+    } else if (_role == 'foreman') {
+      update['bankName'] = _bankNameCtrl.text.trim();
+      update['accountNumber'] = _accountNumberCtrl.text.trim();
+    }
+
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(_uid)
+        .set(update, SetOptions(merge: true));
+
+    if (!mounted) return;
+
+    setState(() => _loading = false);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Profile updated successfully')),
+    );
+  }
+
+  Future<void> _logout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Log Out'),
+        content: const Text('Are you sure you want to log out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Log Out'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    await FirebaseAuth.instance.signOut();
+
+    if (!mounted) return;
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (_) => false,
+    );
+  }
+
+  Widget _field({
     required TextEditingController controller,
-    required String labelText,
-    TextInputType keyboardType = TextInputType.text,
+    required String label,
     bool enabled = true,
+    TextInputType type = TextInputType.text,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: TextFormField(
         controller: controller,
-        keyboardType: keyboardType,
         enabled: enabled,
+        keyboardType: type,
         decoration: InputDecoration(
-          labelText: labelText,
+          labelText: label,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
           filled: true,
-          fillColor: enabled ? Colors.white : Colors.grey[100],
+          fillColor: enabled ? Colors.white : Colors.grey.shade200,
         ),
-        validator: (value) {
-          if (value == null || value.isEmpty) {
-            return '$labelText cannot be empty';
-          }
-          return null;
-        },
+        validator: (v) =>
+            v == null || v.isEmpty ? '$label cannot be empty' : null,
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final Color primaryColor =
-        widget.userRole.toLowerCase().contains('foreman')
-            ? const Color(0xFF2FB668) // Green for foreman
-            : const Color(0xFF4260DB); // Blue for workshop owner or default
+    final primaryColor =
+        _role == 'foreman' ? const Color(0xFF2FB668) : const Color(0xFF4260DB);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          "My Profile",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
+        title: const Text('My Profile'),
         backgroundColor: primaryColor,
-        iconTheme: const IconThemeData(color: Colors.white),
-        leading: Builder(
-          builder:
-              (context) => IconButton(
-                icon: const Icon(Icons.menu),
-                onPressed: () {
-                  print('DEBUG: Sidebar button pressed!');
-                  Scaffold.of(context).openDrawer();
-                },
-              ),
-        ),
-        automaticallyImplyLeading:
-            false, // Keep this false as we're providing a custom leading
+        automaticallyImplyLeading: false,
       ),
-      drawer: SidebarMenu(
-        // Add the drawer here
-        userRole: UserRole.values.firstWhere(
-          (e) =>
-              e.toString().split('.').last.toLowerCase() ==
-              widget.userRole.toLowerCase().replaceAll(' ', ''),
-          orElse:
-              () => UserRole.WorkshopOwner, // Provide a default or handle error
-        ),
-        userName: widget.userName,
-        userPosition: widget.userPosition,
-        selectedTitle: 'Profile',
-        onSelectedTitleChanged: widget.onSelectedTitleChanged,
-        originalUserRole: widget.originalUserRole,
-      ),
-      body:
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : SingleChildScrollView(
-                padding: const EdgeInsets.all(16.0),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Profile Icon/Avatar Placeholder
-                      Center(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 20.0),
-                          child: CircleAvatar(
-                            radius: 50,
-                            backgroundColor: Colors.grey[300],
-                            child: Icon(
-                              Icons.person,
-                              size: 60,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    const SizedBox(height: 16),
+                    CircleAvatar(
+                      radius: 48,
+                      backgroundColor: Colors.grey.shade300,
+                      child: const Icon(Icons.person, size: 56),
+                    ),
+                    const SizedBox(height: 20),
+
+                    _field(controller: _fullNameCtrl, label: 'Full Name'),
+                    _field(
+                      controller: _emailCtrl,
+                      label: 'Email',
+                      enabled: false,
+                      type: TextInputType.emailAddress,
+                    ),
+                    _field(
+                      controller: _phoneCtrl,
+                      label: 'Phone Number',
+                      type: TextInputType.phone,
+                    ),
+
+                    if (_role == 'workshop_owner') ...[
+                      _field(
+                        controller: _workshopNameCtrl,
+                        label: 'Workshop Name',
                       ),
-                      _buildTextField(
-                        controller: _fullNameController,
-                        labelText: 'Full Name',
-                      ),
-                      _buildTextField(
-                        controller: _emailController,
-                        labelText: 'Email',
-                        keyboardType: TextInputType.emailAddress,
-                        enabled: false, // Email is typically not editable
-                      ),
-                      _buildTextField(
-                        controller: _phoneNumberController,
-                        labelText: 'Phone Number',
-                        keyboardType: TextInputType.phone,
-                      ),
-                      if (_userRole.toLowerCase() == 'workshop_owner') ...[
-                        _buildTextField(
-                          controller: _workshopNameController,
-                          labelText: 'Workshop Name',
-                        ),
-                        _buildTextField(
-                          controller: _workshopAddressController,
-                          labelText: 'Workshop Address',
-                          keyboardType: TextInputType.streetAddress,
-                        ),
-                      ],
-                      if (_userRole.toLowerCase() == 'foreman') ...[
-                        _buildTextField(
-                          controller: _bankNameController,
-                          labelText: 'Bank Account',
-                        ),
-                        _buildTextField(
-                          controller: _accountNumberController,
-                          labelText: 'Account Number',
-                          keyboardType: TextInputType.number,
-                        ),
-                      ],
-                      const SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: _saveChanges,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryColor, // Use role-based color
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text(
-                          'Save Changes',
-                          style: TextStyle(fontSize: 18, color: Colors.white),
-                        ),
+                      _field(
+                        controller: _workshopAddressCtrl,
+                        label: 'Workshop Address',
                       ),
                     ],
-                  ),
+
+                    if (_role == 'foreman') ...[
+                      _field(
+                        controller: _bankNameCtrl,
+                        label: 'Bank Name',
+                      ),
+                      _field(
+                        controller: _accountNumberCtrl,
+                        label: 'Account Number',
+                        type: TextInputType.number,
+                      ),
+                    ],
+
+                    const SizedBox(height: 24),
+
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryColor,
+                        ),
+                        onPressed: _saveProfile,
+                        child: const Text('Save Changes'),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                        ),
+                        icon: const Icon(Icons.logout),
+                        label: const Text('Log Out'),
+                        onPressed: _logout,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+            ),
     );
   }
 }
