@@ -10,7 +10,6 @@ import 'package:workshop_management_system/modules/schedule/views/tasks.dart';
 import 'package:workshop_management_system/modules/schedule/widgets/foremanCard.dart';
 import 'package:workshop_management_system/modules/schedule/widgets/taskCard.dart';
 import '../../../domain/taskModel.dart';
-import 'package:workshop_management_system/core/widgets/btmNavigationMenu.dart'; // Import SidebarMenu
 
 
 class RatingService {
@@ -107,6 +106,7 @@ class _ScheduleState extends State<Schedule> {
   late Future<String> userRoleFuture;
   String? role;
   bool showNotification = false;
+  bool showBlankSchedule = false;
   TimeOfDay? startTime;
   TimeOfDay? endTime;
   String? workshopName;
@@ -121,6 +121,7 @@ class _ScheduleState extends State<Schedule> {
     return TimeOfDay.fromDateTime(dt).format(context);
   }
 
+// XQ Task 2 ADDING OWNER APPROVAL
   @override
   void initState() {
     super.initState();
@@ -128,20 +129,10 @@ class _ScheduleState extends State<Schedule> {
     getWorkshopName().then((name) {
       if (widget.userRole.toLowerCase() == 'foreman' &&
           (name == null || name.isEmpty)) {
-        // Redirect to blank setup page
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder:
-                  (_) => BlankSchedulePage(
-                    userRole: widget.userRole,
-                    userName: widget.userName,
-                    userPosition: widget.userPosition,
-                  ),
-            ),
-          );
-        });
+        setState(() {
+  showBlankSchedule = true;
+});
+
       } else {
         // Set it to state if needed elsewhere
         setState(() {
@@ -169,6 +160,21 @@ class _ScheduleState extends State<Schedule> {
       showNotification = snapshot.docs.isNotEmpty;
     });
   }
+
+// XQ Task 2 CHECK IF FOREMAN HAS PENDING JOIN REQUEST
+Future<bool> hasPendingWorkshopRequest() async {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  if (uid == null) return false;
+
+  final snapshot = await FirebaseFirestore.instance
+      .collection('workshop_requests')
+      .where('foremanId', isEqualTo: uid)
+      .where('status', isEqualTo: 'pending')
+      .limit(1)
+      .get();
+
+  return snapshot.docs.isNotEmpty;
+}
 
   //Get WorkshopName
   Future<String?> getWorkshopName() async {
@@ -412,17 +418,13 @@ class _ScheduleState extends State<Schedule> {
         }
 
         if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder:
-                  (_) => const BlankSchedulePage(
-                    userRole: 'foreman',
-                    userName: 'John Doe',
-                    userPosition: 'Supervisor',
-                  ),
-            ),
-          );
-        }
+  setState(() {
+    workshopName = null;
+    showBlankSchedule = true;
+    isContractTerminated = false;
+  });
+}
+
       } else {
         // Workshop owner logged in
         currentWorkshopName = widget.userName;
@@ -478,22 +480,7 @@ class _ScheduleState extends State<Schedule> {
       RatingService().addPendingRating(workshopRatingData);
       RatingService().addPendingRating(foremanRatingData);
 
-      // Force rebuild of the sidebar to update notification badge
-      if (mounted) {
-        setState(() {
-          // Rebuild the scaffold to trigger sidebar rebuild
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder:
-                  (context) => Schedule(
-                    userName: widget.userName,
-                    userRole: widget.userRole,
-                    userPosition: widget.userPosition,
-                  ),
-            ),
-          );
-        });
-      }
+
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -517,6 +504,13 @@ class _ScheduleState extends State<Schedule> {
 
   @override
   Widget build(BuildContext context) {
+    if (showBlankSchedule) {
+    return BlankSchedulePage(
+      userRole: widget.userRole,
+      userName: widget.userName,
+      userPosition: widget.userPosition,
+    );
+  }
     return FutureBuilder<String>(
       future: userRoleFuture,
       builder: (context, snapshot) {

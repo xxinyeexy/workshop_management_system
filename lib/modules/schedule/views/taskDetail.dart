@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:workshop_management_system/provider/scheduleController.dart';
 import 'package:workshop_management_system/modules/schedule/views/reschedulingForm.dart';
 import 'package:workshop_management_system/modules/schedule/widgets/simpleForemanCard.dart';
+import 'package:workshop_management_system/core/widgets/btmNavigationMenu.dart'; // Import Bottom Navi
 import '../../../domain/taskModel.dart';
 
 class TaskDetailPage extends StatefulWidget {
