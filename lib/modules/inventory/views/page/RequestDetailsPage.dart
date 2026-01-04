@@ -3,13 +3,10 @@ import 'package:hive/hive.dart';
 import '../../../../domain/MarketplaceInfo.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:workshop_management_system/provider/InventoryController.dart';
-<<<<<<< HEAD
-import 'package:workshop_management_system/domain/InventoryInfo.dart'; 
-=======
 import 'package:workshop_management_system/domain/InventoryInfo.dart';
-import 'package:workshop_management_system/core/widgets/sidebar.dart'; // Import SidebarMenu
->>>>>>> 9a45a3f67fb4c1f06ad6c57dbae35994165c3365
+import 'package:workshop_management_system/core/widgets/btmNavigationMenu.dart'; // Import SidebarMenu
 import 'package:geolocator/geolocator.dart';
+
 
 class RequestDetailsPage extends StatefulWidget {
   final MarketplaceInfo request_item;

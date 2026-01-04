@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:workshop_management_system/modules/schedule/views/schedule.dart';
+import 'package:workshop_management_system/modules/schedule/views/blankSchedule.dart';
+import 'package:workshop_management_system/modules/schedule/views/tasks.dart';
 import 'package:workshop_management_system/modules/inventory/views/page/InventoryPage.dart';
 import 'package:workshop_management_system/modules/inventory/views/page/Marketplace.dart';
 import 'package:workshop_management_system/modules/rating/views/FindForemanWorkshopPage.dart';
