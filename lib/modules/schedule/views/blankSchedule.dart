@@ -59,6 +59,7 @@ if (!mounted) return;
     }
   }
 
+// XQ TASK 2 REPLACING WITH DROPDOWN
   Future<void> _applyWorkshop() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;

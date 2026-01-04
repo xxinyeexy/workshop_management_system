@@ -24,7 +24,7 @@ class NotificationsPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // ================= EXISTING NOTIFICATIONS =================
+
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('notifications')
@@ -58,7 +58,7 @@ class NotificationsPage extends StatelessWidget {
                         await docRef.update({'isRead': true});
                       }
 
-                      // 🔴 SHOW APPROVE / REJECT DIALOG
+                      // XQ Task 2 WORKSHOP OWNER APPROVAL
                       if (userRole == 'workshop_owner' &&
                           data['title'] == 'Workshop Join Request') {
                         final requestSnapshot =
@@ -87,7 +87,7 @@ class NotificationsPage extends StatelessWidget {
                               actions: [
                                 TextButton(
                                   onPressed: () async {
-                                    // ❌ REJECT
+                                    // XQ TASK 2 REJECT JOINING REQUEST 
                                     await requestDoc.reference.update({
                                       'status': 'rejected',
                                     });
@@ -100,7 +100,7 @@ class NotificationsPage extends StatelessWidget {
                                     backgroundColor: Colors.green,
                                   ),
                                   onPressed: () async {
-                                    // ✅ APPROVE
+                                    // XQ TASK 2 APPROVE JOINING REQUEST
                                     await FirebaseFirestore.instance
                                         .collection('users')
                                         .doc(requestData['foremanId'])
@@ -169,7 +169,7 @@ class NotificationsPage extends StatelessWidget {
             },
           ),
 
-          // ================= 🔽 JOIN REQUESTS (WORKSHOP OWNER ONLY) =================
+          // XQ TASK 2 DISPLAY JOINING WORKSHOP REQUEST
           if (userRole == 'workshop_owner') ...[
             const SizedBox(height: 24),
             const Text(
@@ -181,7 +181,7 @@ class NotificationsPage extends StatelessWidget {
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
               .collection('workshop_requests')
-              .where('ownerId', isEqualTo: currentUser!.uid) // linked to respective id
+              .where('ownerId', isEqualTo: currentUser!.uid) // LINKED TO RESPECTIVE UID
               .where('status', isEqualTo: 'pending')
               .snapshots(),
 

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:workshop_management_system/domain/taskModel.dart';
 import 'package:workshop_management_system/modules/schedule/views/taskDetail.dart';
 import 'package:workshop_management_system/modules/schedule/widgets/taskCard.dart';
-import 'package:workshop_management_system/core/widgets/btmNavigationMenu.dart'; // Import Bottom Navi
+import 'package:workshop_management_system/core/widgets/btmNavigationMenu.dart'; 
 
 class TasksPage extends StatefulWidget {
   final String userRole;
@@ -16,8 +16,8 @@ class TasksPage extends StatefulWidget {
 
 class _TasksPageState extends State<TasksPage> {
   List<TaskModel> tasks = [];
-  List<TaskModel> filteredTasks = []; // ✅ for search result
-  final TextEditingController _searchController = TextEditingController(); // ✅ search controller
+  List<TaskModel> filteredTasks = []; // DISPLAY SEARCH RESULT
+  final TextEditingController _searchController = TextEditingController(); 
 
   @override
   void initState() {
@@ -77,11 +77,11 @@ class _TasksPageState extends State<TasksPage> {
 
     setState(() {
       tasks = fetchedTasks;
-      filteredTasks = fetchedTasks; // ✅ initially show all tasks
+      filteredTasks = fetchedTasks; // DISPLAY ALL TASKS BEFORE SEARCH
     });
   }
 
-  // ✅ Search logic (Perfective Maintenance)
+  // XQ TASK 1 SEARCH FUNCTION 
   void _filterTasks(String query) {
     final lowerQuery = query.toLowerCase();
 
@@ -111,7 +111,7 @@ class _TasksPageState extends State<TasksPage> {
       ),
       body: Column(
         children: [
-          // ✅ Search Bar
+          // ADDED SEARCH BAR 
           Padding(
             padding: const EdgeInsets.all(16),
             child: TextField(
@@ -127,7 +127,7 @@ class _TasksPageState extends State<TasksPage> {
             ),
           ),
 
-          // ✅ Task List
+          // DISPLAY TASKS LIST
           Expanded(
             child:
                 filteredTasks.isEmpty
