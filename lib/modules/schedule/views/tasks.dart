@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:workshop_management_system/domain/taskModel.dart';
 import 'package:workshop_management_system/modules/schedule/views/taskDetail.dart';
 import 'package:workshop_management_system/modules/schedule/widgets/taskCard.dart';
+import 'package:workshop_management_system/core/widgets/btmNavigationMenu.dart'; // Import Bottom Navi
 
 class TasksPage extends StatefulWidget {
   final String userRole;
@@ -15,6 +16,8 @@ class TasksPage extends StatefulWidget {
 
 class _TasksPageState extends State<TasksPage> {
   List<TaskModel> tasks = [];
+  List<TaskModel> filteredTasks = []; // ✅ for search result
+  final TextEditingController _searchController = TextEditingController(); // ✅ search controller
 
   @override
   void initState() {
@@ -22,10 +25,11 @@ class _TasksPageState extends State<TasksPage> {
     fetchTasks();
   }
 
-  //Retrieve TaskList
+  // Retrieve Task List
   Future<void> fetchTasks() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
-    final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    final userDoc =
+        await FirebaseFirestore.instance.collection('users').doc(uid).get();
     final role = userDoc['role'];
 
     Query query;
@@ -43,9 +47,15 @@ class _TasksPageState extends State<TasksPage> {
 
     final querySnapshot = await query.get();
 
-    final fetchedTasks = querySnapshot.docs
-        .map((doc) => TaskModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-        .toList();
+    final fetchedTasks =
+        querySnapshot.docs
+            .map(
+              (doc) => TaskModel.fromMap(
+                doc.data() as Map<String, dynamic>,
+                doc.id,
+              ),
+            )
+            .toList();
 
     // Define status priority
     const statusOrder = {
@@ -55,28 +65,41 @@ class _TasksPageState extends State<TasksPage> {
       'cancelled': 3,
     };
 
-    // Custom sort: by status first, then by taskStartTime
+    // Sort by status first, then by task start time
     fetchedTasks.sort((a, b) {
-      final statusCompare = (statusOrder[a.taskStatus.toLowerCase()] ?? 999)
-          .compareTo(statusOrder[b.taskStatus.toLowerCase()] ?? 999);
+      final statusCompare =
+          (statusOrder[a.taskStatus.toLowerCase()] ?? 999)
+              .compareTo(statusOrder[b.taskStatus.toLowerCase()] ?? 999);
 
       if (statusCompare != 0) return statusCompare;
-
       return a.taskStartTime.compareTo(b.taskStartTime);
     });
 
     setState(() {
       tasks = fetchedTasks;
+      filteredTasks = fetchedTasks; // ✅ initially show all tasks
     });
   }
 
+  // ✅ Search logic (Perfective Maintenance)
+  void _filterTasks(String query) {
+    final lowerQuery = query.toLowerCase();
 
+    setState(() {
+      filteredTasks =
+          tasks.where((task) {
+            return task.taskTitle.toLowerCase().contains(lowerQuery) ||
+                task.taskStatus.toLowerCase().contains(lowerQuery);
+          }).toList();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: widget.userRole == 'foreman' ? Colors.green : Colors.blue,
+        backgroundColor:
+            widget.userRole == 'foreman' ? Colors.green : Colors.blue,
         centerTitle: true,
         title: const Text(
           'Tasks',
@@ -86,35 +109,63 @@ class _TasksPageState extends State<TasksPage> {
           ),
         ),
       ),
-      body: tasks.isEmpty
-          ? const Center(
-            child: Text(
-              'No task records found',
-              style: TextStyle(fontSize: 16),
+      body: Column(
+        children: [
+          // ✅ Search Bar
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search tasks...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onChanged: _filterTasks,
             ),
-          )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: tasks.length,
-              itemBuilder: (context, index) {
-                final task = tasks[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: TaskCard(
-                    task: task,
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => TaskDetailPage(taskId: task.id, userRole: widget.userRole),
-                        ),
-                      );
-                        fetchTasks();
-                    },
-                  ),
-                );
-              },
-            ),
+          ),
+
+          // ✅ Task List
+          Expanded(
+            child:
+                filteredTasks.isEmpty
+                    ? const Center(
+                      child: Text(
+                        'No task records found',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    )
+                    : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: filteredTasks.length,
+                      itemBuilder: (context, index) {
+                        final task = filteredTasks[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: TaskCard(
+                            task: task,
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (_) => TaskDetailPage(
+                                        taskId: task.id,
+                                        userRole: widget.userRole,
+                                      ),
+                                ),
+                              );
+                              fetchTasks();
+                            },
+                          ),
+                        );
+                      },
+                    ),
+          ),
+        ],
+      ),
     );
   }
 }
