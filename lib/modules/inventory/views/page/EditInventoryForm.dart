@@ -1,8 +1,6 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+// Removed: image_picker, firebase_storage, dart:io imports
 import 'package:workshop_management_system/domain/InventoryInfo.dart';
 import 'package:workshop_management_system/provider/InventoryController.dart';
 import 'package:workshop_management_system/routes/route.dart';
@@ -26,11 +24,8 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
   late TextEditingController _quantityController;
   late TextEditingController _costController;
 
-  // Image related variables
-  File? _imageFile;
-  String? _currentImageUrl;
-  bool _isImageChanged = false;
-  bool _isUploading = false;
+  // Loading state (renamed from _isUploading)
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -45,9 +40,9 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
       text: widget.item.item_quantity.toString(),
     );
     _costController = TextEditingController(
-      text: widget.item.item_costperunit.toString(),
+      text: widget.item.item_costperunit.toStringAsFixed(2), // Added toStringAsFixed for better formatting
     );
-    _currentImageUrl = widget.item.item_image;
+    // Removed _currentImageUrl initialization
   }
 
   @override
@@ -88,54 +83,11 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Upload image section
-                  Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Stack(
-                          children: [
-                            Container(
-                              width: 150,
-                              height: 150,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[200],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child:
-                                  _buildImageWidget(), 
-                            ),
-                            Positioned(
-                              right: 0,
-                              bottom: 0,
-                              child: FloatingActionButton(
-                                mini: true,
-                                backgroundColor: Colors.indigo[500],
-                                onPressed: _pickImage,
-                                child: const Icon(
-                                  Icons.add,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Add Image (Optional)',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  // --- IMAGE SECTION REMOVED ---
 
                   // Text field to input item_name (Required)
                   const Text(
-                    'Item Name *',   
+                    'Item Name *',
                     style: TextStyle(fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 8),
@@ -178,7 +130,6 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
                   const SizedBox(height: 16),
 
                   // Text fields to edit item_quantity and item_costperunit (Required)
-                  // For edit: item_quantity can be 0, cannot <0
                   Row(
                     children: [
                       Expanded(
@@ -230,8 +181,8 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
                               controller: _costController,
                               keyboardType:
                                   const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
+                                decimal: true,
+                              ),
                               inputFormatters: [
                                 FilteringTextInputFormatter.allow(
                                   RegExp(r'^\d+\.?\d{0,2}'),
@@ -264,7 +215,7 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
 
                   // Update button
                   ElevatedButton(
-                    onPressed: _isUploading ? null : updateItem,
+                    onPressed: _isSaving ? null : updateItem,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.indigo[500],
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -276,20 +227,19 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child:
-                        _isUploading
-                            ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                            : const Text(
-                              'Update',
-                              style: TextStyle(color: Colors.white),
+                    child: _isSaving
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
                             ),
+                          )
+                        : const Text(
+                            'Update',
+                            style: TextStyle(color: Colors.white),
+                          ),
                   ),
                 ],
               ),
@@ -300,158 +250,25 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
     );
   }
 
-  // Build image widget based on current state
-  Widget _buildImageWidget() {
-    if (_imageFile != null) {
-      // Show new selected image file
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image.file(_imageFile!, fit: BoxFit.cover),
-      );
-    } else if (_currentImageUrl != null && _currentImageUrl!.isNotEmpty) {
-      // Show existing image from URL
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image.network(
-          _currentImageUrl!,
-          fit: BoxFit.cover,
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return Center(
-              child: CircularProgressIndicator(
-                value:
-                    loadingProgress.expectedTotalBytes != null
-                        ? loadingProgress.cumulativeBytesLoaded /
-                            loadingProgress.expectedTotalBytes!
-                        : null,
-              ),
-            );
-          },
-          errorBuilder: (context, error, stackTrace) {
-            return const Icon(Icons.broken_image, size: 50, color: Colors.grey);
-          },
-        ),
-      );
-    } else {
-      // Show placeholder
-      return const Icon(Icons.camera_alt, size: 50, color: Colors.grey);
-    }
-  }
-
-  // Pick image from gallery or camera
-  Future<void> _pickImage() async {
-    final ImagePicker picker = ImagePicker();
-
-   
-    showModalBottomSheet(
-      context: context,
-      builder: (BuildContext context) {
-        return SafeArea(
-          child: Wrap(
-            children: <Widget>[
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: const Text('Gallery'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  final XFile? image = await picker.pickImage(
-                    source: ImageSource.gallery,
-                    maxWidth: 800,
-                  );
-                  if (image != null) {
-                    setState(() {
-                      _imageFile = File(image.path);
-                      _isImageChanged = true;
-                    });
-                  }
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.camera_alt),
-                title: const Text('Camera'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  final XFile? photo = await picker.pickImage(
-                    source: ImageSource.camera,
-                    maxWidth: 800,
-                  );
-                  if (photo != null) {
-                    setState(() {
-                      _imageFile = File(photo.path);
-                      _isImageChanged = true;
-                    });
-                  }
-                },
-              ),
-              if (_currentImageUrl != null && _currentImageUrl!.isNotEmpty)
-                ListTile(
-                  leading: const Icon(Icons.delete, color: Colors.red),
-                  title: const Text(
-                    'Remove Image',
-                    style: TextStyle(color: Colors.red),
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    setState(() {
-                      _currentImageUrl = '';
-                      _imageFile = null;
-                      _isImageChanged = true;
-                    });
-                  },
-                ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // Upload image to Firebase Storage
-  Future<String?> _uploadImage() async {
-    if (_imageFile == null) return _currentImageUrl;
-
-    try {
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('inventory_images')
-          .child('${DateTime.now().millisecondsSinceEpoch}.jpg');
-
-      final uploadTask = storageRef.putFile(_imageFile!);
-      final snapshot = await uploadTask;
-
-      return await snapshot.ref.getDownloadURL();
-    } catch (e) {
-     
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error uploading image: ${e.toString()}')),
-      );
-      return null;
-    }
-  }
+  // --- REMOVED _buildImageWidget(), _pickImage(), and _uploadImage() ---
 
   // Update inventory item
   void updateItem() async {
     if (_formKey.currentState!.validate()) {
       // Start loading
       setState(() {
-        _isUploading = true;
+        _isSaving = true;
       });
 
       try {
-        String? imageUrl = _currentImageUrl;
-
-        // Upload new image if changed
-        if (_isImageChanged && _imageFile != null) {
-          imageUrl = await _uploadImage();
-        }
-
         // Create updated inventory item
+        // We do not change the item_image. We pass the existing one back, or empty string.
         final updatedItem = widget.item.copyWith(
           item_name: _nameController.text.trim(),
           item_description: _descriptionController.text.trim(),
           item_quantity: int.parse(_quantityController.text),
           item_costperunit: double.parse(_costController.text),
-          item_image: imageUrl ?? '',
+          item_image: widget.item.item_image, // Keep existing URL to avoid data loss, though not displayed
           updated_at: DateTime.now(),
         );
 
@@ -472,7 +289,6 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
           AppRouter.goBack(context);
         }
       } catch (e) {
-        //print('Error updating inventory item: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -488,7 +304,7 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
         // Stop loading
         if (mounted) {
           setState(() {
-            _isUploading = false;
+            _isSaving = false;
           });
         }
       }

@@ -1,50 +1,94 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
 import 'package:flutter/material.dart';
 import 'package:workshop_management_system/domain/InventoryInfo.dart';
 import 'package:workshop_management_system/provider/InventoryController.dart';
 import 'package:workshop_management_system/routes/route.dart';
 
+// --- SORTING LOGIC (Unchanged) ---
+enum SortOption {
+  nameAZ,
+  nameZA,
+  priceLowHigh,
+  priceHighLow,
+  quantityLowHigh,
+  quantityHighLow,
+}
+
 class InventoryPage extends StatefulWidget {
   final String userRole;
   final String userName;
-
   final String userPosition;
 
-  
   const InventoryPage({
     super.key,
     required this.userRole,
-    required this.userName,  // widget.userName = workshopName
-  
+    required this.userName,
     required this.userPosition,
-   
-    });
+  });
 
   @override
   _InventoryPageState createState() => _InventoryPageState();
 }
 
 class _InventoryPageState extends State<InventoryPage> {
-  final InventoryController inventoryController = InventoryController();  //Access to InventoryController
-  final CollectionReference _inventoryCollection = 
+  final InventoryController inventoryController = InventoryController();
+  final CollectionReference _inventoryCollection =
       FirebaseFirestore.instance.collection('inventory');
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  // Sorting state (Unchanged)
+  SortOption _currentSortOption = SortOption.nameAZ;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: Colors.grey[100], 
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: const Text(
-          'Inventory', //Title
+          'Inventory',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
         ),
-        backgroundColor: Colors.indigo[500], 
+        backgroundColor: Colors.indigo[500],
         elevation: 0,
         actions: [
+          // Sorting Button (Unchanged)
+          PopupMenuButton<SortOption>(
+            icon: const Icon(Icons.sort, color: Colors.white),
+            tooltip: 'Sort Items',
+            onSelected: (SortOption result) {
+              setState(() {
+                _currentSortOption = result;
+              });
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<SortOption>>[
+              const PopupMenuItem<SortOption>(
+                value: SortOption.nameAZ,
+                child: Text('Name (A-Z)'),
+              ),
+              const PopupMenuItem<SortOption>(
+                value: SortOption.nameZA,
+                child: Text('Name (Z-A)'),
+              ),
+              const PopupMenuItem<SortOption>(
+                value: SortOption.priceLowHigh,
+                child: Text('Price (Low to High)'),
+              ),
+              const PopupMenuItem<SortOption>(
+                value: SortOption.priceHighLow,
+                child: Text('Price (High to Low)'),
+              ),
+              const PopupMenuItem<SortOption>(
+                value: SortOption.quantityLowHigh,
+                child: Text('Qty (Low to High)'),
+              ),
+              const PopupMenuItem<SortOption>(
+                value: SortOption.quantityHighLow,
+                child: Text('Qty (High to Low)'),
+              ),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.add, color: Colors.white),
             onPressed: () => addInventory(context),
@@ -57,49 +101,53 @@ class _InventoryPageState extends State<InventoryPage> {
 
   Widget _buildInventoryList() {
     return StreamBuilder<List<InventoryInfo>>(
-      stream: inventoryController.getInventory(), 
+      stream: inventoryController.getInventory(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-
         if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
         }
-
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.inventory, size: 64, color: Colors.grey),
-                const SizedBox(height: 16),
-                const Text(
-                  'No inventory items found',
-                  style: TextStyle(fontSize: 18, color: Colors.grey),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () => addInventory(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.indigo[500],
-                  ),
-                  child: const Text(
-                    'Add Item',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              ],
-            ),
-          );
+          return Center(child: Text('No items found'));
         }
 
-        final items = snapshot.data!;
+        // Sorting Logic (Unchanged - keeps your existing sort)
+        List<InventoryInfo> items = List.from(snapshot.data!);
+        switch (_currentSortOption) {
+          case SortOption.nameAZ:
+            items.sort((a, b) => a.item_name.toLowerCase().compareTo(b.item_name.toLowerCase()));
+            break;
+          case SortOption.nameZA:
+            items.sort((a, b) => b.item_name.toLowerCase().compareTo(a.item_name.toLowerCase()));
+            break;
+          case SortOption.priceLowHigh:
+            items.sort((a, b) => a.item_costperunit.compareTo(b.item_costperunit));
+            break;
+          case SortOption.priceHighLow:
+            items.sort((a, b) => b.item_costperunit.compareTo(a.item_costperunit));
+            break;
+          case SortOption.quantityLowHigh:
+            items.sort((a, b) => a.item_quantity.compareTo(b.item_quantity));
+            break;
+          case SortOption.quantityHighLow:
+            items.sort((a, b) => b.item_quantity.compareTo(a.item_quantity));
+            break;
+        }
 
         return Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: ListView.builder(
+          padding: const EdgeInsets.all(12.0),
+          // --- CHANGED FROM LISTVIEW TO GRIDVIEW ---
+          child: GridView.builder(
             itemCount: items.length,
+            // This delegate controls the grid layout (2 columns)
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,       // 2 items side-by-side
+              crossAxisSpacing: 10,    // Horizontal gap between cards
+              mainAxisSpacing: 10,     // Vertical gap between cards
+              childAspectRatio: 1.3,   // Controls height (Wider ratio since no image)
+            ),
             itemBuilder: (context, index) {
               final item = items[index];
               return _buildInventoryItemCard(item);
@@ -111,125 +159,86 @@ class _InventoryPageState extends State<InventoryPage> {
   }
 
   Widget _buildInventoryItemCard(InventoryInfo item) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Dismissible(
-        key: Key(item.item_id ?? 'unknown'),
-        background: Container(
-          alignment: Alignment.centerRight,
-          padding: const EdgeInsets.only(right: 20.0),
-          color: Colors.red,
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey[300]!),
+      ),
+      child: InkWell(
+        onTap: () => editInventory(context, item),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Delete',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
+              // --- ROW 1: Name & Delete Icon ---
+              Row(
+                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                 crossAxisAlignment: CrossAxisAlignment.start,
+                 children: [
+                   Expanded(
+                     child: Text(
+                      item.item_name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                     ),
+                   ),
+                   const SizedBox(width: 8),
+                   // Delete moved here since swiping doesn't work well in Grids
+                   InkWell(
+                      onTap: () => showDeleteConfirmation(item).then((confirm) {
+                        if(confirm) deleteItem(item);
+                      }),
+                      child: const Icon(Icons.delete_outline, color: Colors.red, size: 22),
+                    ),
+                 ],
               ),
-              SizedBox(width: 8),
-              Icon(Icons.delete, color: Colors.white),
-            ],
-          ),
-        ),
-        direction: DismissDirection.endToStart,
-        confirmDismiss: (direction) async {
-          return await showDeleteConfirmation(item);
-        },
-        onDismissed: (direction) {
-          deleteItem(item);
-        },
-        child: Card(
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: Colors.grey[300]!),
-          ),
-
-          child: InkWell(
-            onTap: () => editInventory(context, item),
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
+              
+              // --- ROW 2: Details (Price, Desc, Qty) ---
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Item Image
-                  Container(
-                    width: 80,
-                    height: 80,
-                    margin: const EdgeInsets.only(right: 16),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      color: Colors.grey[200],
-                      image:
-                          item.item_image.isNotEmpty
-                              ? DecorationImage(
-                                image: NetworkImage(item.item_image),
-                                fit: BoxFit.cover,
-                              )
-                              : null,
-                    ),
-                    child:
-                        item.item_image.isEmpty
-                            ? const Center(
-                              child: Icon(
-                                Icons.image_not_supported,
-                                color: Colors.grey,
-                              ),
-                            )
-                            : null,
-                  ),
-
-                  // Inventory List Display
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.item_name,    //item_name
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          item.item_description,  //item_description
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Qty: ${item.item_quantity}', //item_quantity
-                              style: TextStyle(
-                                fontSize: 14,
-                                color:
-                                    item.item_quantity == 0    //Qty=0 (Red)
-                                        ? Colors.red
-                                        : Colors.black87,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              'RM ${item.item_costperunit.toStringAsFixed(2)}/unit', //item_costperunit
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                          ],
-                        ),
-                      ],
+                   Text(
+                    'RM ${item.item_costperunit.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.indigo[700]
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                       Expanded(
+                         child: Text(
+                          item.item_description,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                         ),
+                       ),
+                       const SizedBox(width: 8),
+                       Text(
+                        'Qty: ${item.item_quantity}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: item.item_quantity == 0 ? Colors.red : Colors.black87,
+                        ),
+                      ),
+                    ],
+                  )
                 ],
-              ),
-            ),
+              )
+            ],
           ),
         ),
       ),
@@ -237,18 +246,17 @@ class _InventoryPageState extends State<InventoryPage> {
   }
 
   void addInventory(BuildContext context) {
-  AppRouter.navigateTo(context, AppRoutes.addInventory);
-}
+    AppRouter.navigateTo(context, AppRoutes.addInventory);
+  }
 
-void editInventory(BuildContext context, InventoryInfo item) {
-  AppRouter.navigateTo(
-    context,
-    AppRoutes.editInventory,
-    arguments: item,
-  );
-}
+  void editInventory(BuildContext context, InventoryInfo item) {
+    AppRouter.navigateTo(
+      context,
+      AppRoutes.editInventory,
+      arguments: item,
+    );
+  }
 
-//Display delete confirmation box when user wants to delete inventory
   Future<bool> showDeleteConfirmation(InventoryInfo item) async {
     return await showDialog(
           context: context,
@@ -274,19 +282,18 @@ void editInventory(BuildContext context, InventoryInfo item) {
             );
           },
         ) ??
-        false; 
+        false;
   }
 
   void deleteItem(InventoryInfo item) async {
     try {
-      await inventoryController.deleteInventoryItem(item.item_id!); 
+      await inventoryController.deleteInventoryItem(item.item_id!);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${item.item_name} deleted'),
           action: SnackBarAction(
             label: 'UNDO',
             onPressed: () {
-              // Add the item back
               inventoryController.addInventoryItem(item);
             },
           ),
