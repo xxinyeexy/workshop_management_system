@@ -144,11 +144,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     final bool ownerCanAct = widget.userRole == 'workshop_owner' && data['taskStatus'] == 'scheduled';
     final bool foremanCanComplete = widget.userRole == 'foreman' && now.isAfter(start) && data['taskStatus'] == 'scheduled';
     
-    final bool canDeleteTask =
-    data['taskStatus'] == 'paid' ||
-    data['taskStatus'] == 'cancelled' ||
-    data['taskStatus'] == 'overdue';
-
+    final bool canDeleteTask = data['taskStatus'] == 'paid' || data['taskStatus'] == 'cancelled';
 
     final primaryColor = widget.userRole == 'foreman' ? Colors.green : Colors.blue;
 
