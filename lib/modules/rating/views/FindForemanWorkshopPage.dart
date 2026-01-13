@@ -26,6 +26,7 @@ class FindForemanWorkshopPage extends StatefulWidget {
   @override
   State<FindForemanWorkshopPage> createState() =>
       _FindForemanWorkshopPageState();
+      
 }
 
 class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
@@ -36,6 +37,7 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
   List<Map<String, dynamic>> workshops = [];
   bool isLoading = true;
   int _pendingRatingsCount = 0;
+  int _selectedStar = 0; // 0 = all, 1..5 filter by rating
 
   // Cache for rating data to avoid repeated queries
   final Map<String, Map<String, dynamic>> _ratingCache = {};
@@ -426,37 +428,41 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
             name,
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
-          subtitle: Row(
-            children: [
-              if (totalRatings > 0) ...[
-                Text(
-                  rating.toStringAsFixed(1),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ...List.generate(5, (index) {
-                  return Icon(
-                    index < rating.floor()
-                        ? Icons.star
-                        : (index < rating.ceil() && rating % 1 != 0)
-                        ? Icons.star_half
-                        : Icons.star_border,
-                    size: 16,
-                    color: Colors.orange,
-                  );
-                }),
-              ] else ...[
-                const Text(
-                  "No ratings yet",
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ],
+          subtitle: Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    Row(
+      children: [
+        if (totalRatings > 0) ...[
+          Text(
+            rating.toStringAsFixed(1),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
+          const SizedBox(width: 8),
+          ...List.generate(5, (index) {
+            return Icon(
+              index < rating.floor()
+                  ? Icons.star
+                  : (index < rating.ceil() && rating % 1 != 0)
+                      ? Icons.star_half
+                      : Icons.star_border,
+              size: 16,
+              color: Colors.orange,
+            );
+          }),
+        ] else ...[
+          const Text("No ratings yet", style: TextStyle(fontSize: 12)),
+        ],
+      ],
+    ),
+    const SizedBox(height: 4),
+    Text(
+      totalRatings > 0 ? "$totalRatings reviews" : "0 reviews",
+      style: const TextStyle(fontSize: 12, color: Colors.grey),
+    ),
+  ],
+),
+
         ),
       ),
     );
@@ -464,6 +470,13 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
 
   Widget _buildTabContent(bool isForeman) {
     List<Map<String, dynamic>> items = isForeman ? foremen : workshops;
+
+if (_selectedStar > 0) {
+  items = items
+      .where((u) =>
+          (u['averageRating'] ?? 0).round() == _selectedStar)
+      .toList();
+}
 
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -629,17 +642,35 @@ class _FindForemanWorkshopPageState extends State<FindForemanWorkshopPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8.0),
-                  child: Text(
-                    "I'm looking\nfor workshop\nowner and\nforeman.",
-                    style: TextStyle(
-                      fontSize: 48,
-                      fontWeight: FontWeight.bold,
-                      height: 1.2,
-                    ),
-                  ),
-                ),
+                const Text(
+  "Please select a rating to filter:",
+  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+),
+const SizedBox(height: 12),
+Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: List.generate(5, (index) {
+    final star = index + 1;
+    final isSelected = _selectedStar == star;
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: isSelected ? primaryColor : Colors.grey[300],
+        foregroundColor: isSelected ? Colors.white : Colors.black,
+        shape: const CircleBorder(),
+padding: const EdgeInsets.all(8), // smaller
+minimumSize: const Size(44, 44), // force compact size
+      ),
+      onPressed: () {
+        setState(() {
+          _selectedStar = isSelected ? 0 : star;
+        });
+      },
+      child: Text("$star★"),
+    );
+  }),
+),
+const SizedBox(height: 10),
+
                 TabBar(
                   controller: _tabController,
                   labelColor: primaryColor,
