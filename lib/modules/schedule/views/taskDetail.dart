@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:workshop_management_system/provider/scheduleController.dart';
 import 'package:workshop_management_system/modules/schedule/views/reschedulingForm.dart';
 import 'package:workshop_management_system/modules/schedule/widgets/simpleForemanCard.dart';
-import 'package:workshop_management_system/core/widgets/btmNavigationMenu.dart'; // Import Bottom Navi
 import '../../../domain/taskModel.dart';
 
 class TaskDetailPage extends StatefulWidget {
@@ -29,6 +28,45 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
   void initState() {
     super.initState();
     loadTask();
+  }
+
+  void confirmDeleteTask() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete Task Record"),
+        content: const Text(
+          "This action cannot be undone. Are you sure you want to delete this task record?",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              await deleteTask();
+              Navigator.pop(context); // close dialog
+            },
+            child: const Text("Delete", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> deleteTask() async {
+    await FirebaseFirestore.instance
+        .collection('tasks')
+        .doc(widget.taskId)
+        .delete();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Task record deleted")),
+    );
+
+    Navigator.pop(context); // exit TaskDetailPage
   }
 
   Future<void> loadTask() async {
@@ -105,6 +143,12 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
 
     final bool ownerCanAct = widget.userRole == 'workshop_owner' && data['taskStatus'] == 'scheduled';
     final bool foremanCanComplete = widget.userRole == 'foreman' && now.isAfter(start) && data['taskStatus'] == 'scheduled';
+    
+    final bool canDeleteTask =
+    data['taskStatus'] == 'paid' ||
+    data['taskStatus'] == 'cancelled' ||
+    data['taskStatus'] == 'overdue';
+
 
     final primaryColor = widget.userRole == 'foreman' ? Colors.green : Colors.blue;
 
@@ -130,6 +174,20 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
             _buildField("End Time", formatDateTime(end)),
             _buildField("Reward", "RM ${data['taskReward']}"),
             _buildField("Status", data['taskStatus']),
+            if (canDeleteTask)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: confirmDeleteTask,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey.shade800,
+                  ),
+                  child: const Text(
+                    "Delete Record",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ),
             const Spacer(),
             if (ownerCanAct)
               Row(
