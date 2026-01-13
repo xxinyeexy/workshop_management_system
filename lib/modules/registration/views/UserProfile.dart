@@ -29,6 +29,26 @@ class _UserProfilePageState extends State<UserProfilePage> {
   final _workshopAddressCtrl = TextEditingController();
   final _bankNameCtrl = TextEditingController();
   final _accountNumberCtrl = TextEditingController();
+  final _roleDisplayCtrl = TextEditingController();
+  final _operatingHoursCtrl = TextEditingController();
+final _specializationCtrl = TextEditingController();
+final _experienceCtrl = TextEditingController();
+final _primarySkillsCtrl = TextEditingController();
+ 
+
+
+  Widget _sectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 20, bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey)),
+          const Divider(),
+        ],
+      ),
+    );
+  }
 
   bool _loading = true;
   String _role = '';
@@ -42,6 +62,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   @override
   void dispose() {
+    _roleDisplayCtrl.dispose();
     _fullNameCtrl.dispose();
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
@@ -49,6 +70,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
     _workshopAddressCtrl.dispose();
     _bankNameCtrl.dispose();
     _accountNumberCtrl.dispose();
+    _operatingHoursCtrl.dispose();
+   _specializationCtrl.dispose();
+   _experienceCtrl.dispose();
+   _primarySkillsCtrl.dispose();
+
     super.dispose();
   }
 
@@ -71,13 +97,18 @@ class _UserProfilePageState extends State<UserProfilePage> {
       _emailCtrl.text = data['email'] ?? '';
       _phoneCtrl.text = data['phoneNumber'] ?? '';
       _role = (data['role'] ?? '').toString().toLowerCase();
+      _roleDisplayCtrl.text = _role == 'workshop_owner' ? 'Workshop Owner' : 'Foreman';
 
       if (_role == 'workshop_owner') {
         _workshopNameCtrl.text = data['workshopName'] ?? '';
         _workshopAddressCtrl.text = data['workshopAddress'] ?? '';
+        _operatingHoursCtrl.text = data['operatingHours'] ?? '';
+  _specializationCtrl.text = data['specialization'] ?? '';
       } else if (_role == 'foreman') {
         _bankNameCtrl.text = data['bankName'] ?? '';
         _accountNumberCtrl.text = data['accountNumber'] ?? '';
+        _experienceCtrl.text = data['experience'] ?? '';
+  _primarySkillsCtrl.text = data['primarySkills'] ?? '';
       }
     } finally {
       setState(() => _loading = false);
@@ -98,9 +129,13 @@ class _UserProfilePageState extends State<UserProfilePage> {
     if (_role == 'workshop_owner') {
       update['workshopName'] = _workshopNameCtrl.text.trim();
       update['workshopAddress'] = _workshopAddressCtrl.text.trim();
+      update['operatingHours'] = _operatingHoursCtrl.text.trim();
+      update['specialization'] = _specializationCtrl.text.trim();
     } else if (_role == 'foreman') {
       update['bankName'] = _bankNameCtrl.text.trim();
       update['accountNumber'] = _accountNumberCtrl.text.trim();
+      update['experience'] = _experienceCtrl.text.trim();
+      update['primarySkills'] = _primarySkillsCtrl.text.trim();
     }
 
     await FirebaseFirestore.instance
@@ -172,6 +207,37 @@ class _UserProfilePageState extends State<UserProfilePage> {
       ),
     );
   }
+Widget _sectionCard({
+  required String title,
+  required List<Widget> children,
+  Color? color,
+}) {
+  return Container(
+    width: double.infinity,
+    margin: const EdgeInsets.only(bottom: 20),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: color ?? Colors.grey.shade100,
+      borderRadius: BorderRadius.circular(14),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 6,
+          offset: const Offset(0, 3),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        ...children,
+      ],
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -192,50 +258,65 @@ class _UserProfilePageState extends State<UserProfilePage> {
                 key: _formKey,
                 child: Column(
                   children: [
+                    
                     const SizedBox(height: 16),
                     CircleAvatar(
                       radius: 48,
                       backgroundColor: Colors.grey.shade300,
                       child: const Icon(Icons.person, size: 56),
                     ),
+                  const SizedBox(height: 8),
+Text(
+  _roleDisplayCtrl.text,
+  style: const TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.bold,
+    color: Colors.grey,
+  ),
+),
                     const SizedBox(height: 20),
+                    _sectionCard(
+  title: "Basic Information",
+  color: Colors.blue.shade50,
+  children: [
+    _field(controller: _fullNameCtrl, label: 'Full Name'),
+    _field(
+      controller: _emailCtrl,
+      label: 'Email',
+      enabled: false,
+      type: TextInputType.emailAddress,
+    ),
+    _field(
+      controller: _phoneCtrl,
+      label: 'Phone Number',
+      type: TextInputType.phone,
+    ),
+  ],
+),
 
-                    _field(controller: _fullNameCtrl, label: 'Full Name'),
-                    _field(
-                      controller: _emailCtrl,
-                      label: 'Email',
-                      enabled: false,
-                      type: TextInputType.emailAddress,
-                    ),
-                    _field(
-                      controller: _phoneCtrl,
-                      label: 'Phone Number',
-                      type: TextInputType.phone,
-                    ),
-
-                    if (_role == 'workshop_owner') ...[
-                      _field(
-                        controller: _workshopNameCtrl,
-                        label: 'Workshop Name',
-                      ),
-                      _field(
-                        controller: _workshopAddressCtrl,
-                        label: 'Workshop Address',
-                      ),
-                    ],
-
-                    if (_role == 'foreman') ...[
-                      _field(
-                        controller: _bankNameCtrl,
-                        label: 'Bank Name',
-                      ),
-                      _field(
-                        controller: _accountNumberCtrl,
-                        label: 'Account Number',
-                        type: TextInputType.number,
-                      ),
-                    ],
-
+                    if (_role == 'workshop_owner' || _role == 'foreman')
+  _sectionCard(
+    title: "Professional Information",
+    color: Colors.green.shade50,
+    children: [
+      if (_role == 'workshop_owner') ...[
+        _field(controller: _workshopNameCtrl, label: 'Workshop Name'),
+        _field(controller: _workshopAddressCtrl, label: 'Workshop Address'),
+        _field(controller: _operatingHoursCtrl, label: 'Operating Hours'),
+        _field(controller: _specializationCtrl, label: 'Specialization'),
+      ],
+      if (_role == 'foreman') ...[
+        _field(controller: _bankNameCtrl, label: 'Bank Name'),
+        _field(
+          controller: _accountNumberCtrl,
+          label: 'Account Number',
+          type: TextInputType.number,
+        ),
+        _field(controller: _experienceCtrl, label: 'Experience'),
+        _field(controller: _primarySkillsCtrl, label: 'Primary Technical Skills'),
+      ],
+    ],
+  ),
                     const SizedBox(height: 24),
 
                     SizedBox(
