@@ -1,8 +1,6 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+// Removed: image_picker, firebase_storage, dart:io imports
 import 'package:workshop_management_system/domain/InventoryInfo.dart';
 import 'package:workshop_management_system/provider/InventoryController.dart';
 import 'package:workshop_management_system/routes/route.dart';
@@ -16,7 +14,8 @@ class AddInventoryPage extends StatefulWidget {
 
 class _AddInventoryPageState extends State<AddInventoryPage> {
   final _formKey = GlobalKey<FormState>();
-  final InventoryController inventoryController = InventoryController(); //InventoryController 
+  final InventoryController inventoryController =
+      InventoryController(); //InventoryController
 
   // Text controllers
   final _nameController = TextEditingController();
@@ -24,10 +23,8 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
   final _quantityController = TextEditingController();
   final _costController = TextEditingController();
 
-  // Image operation variable
-  File? _imageFile;
-  String? _uploadedImageUrl;
-  bool _isUploading = false;
+  // Loading state (renamed from _isUploading)
+  bool _isSaving = false;
 
   @override
   void dispose() {
@@ -39,13 +36,13 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
   }
 
   @override
-  Widget build(BuildContext context) {  
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: const Text(
           'Add Inventory Item',
-          style: TextStyle(color: Colors.white),  //Title: 'Add Inventory Item'
+          style: TextStyle(color: Colors.white), //Title: 'Add Inventory Item'
         ),
         backgroundColor: Colors.indigo[500],
         elevation: 0,
@@ -67,78 +64,7 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Upload image section
-                  Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Container(
-                              width: 150,
-                              height: 150,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[100],
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child:
-                                  _imageFile != null
-                                      ? ClipRRect(
-                                        borderRadius: BorderRadius.circular(12),
-                                        child: Image.file(
-                                          _imageFile!,
-                                          fit: BoxFit.cover,
-                                        ),
-                                      )
-                                      : Icon(
-                                        Icons.camera_alt,
-                                        size: 40,
-                                        color: Colors.grey[400],
-                                      ),
-                            ),
-                            Positioned(
-                              bottom: -4,
-                              right: -4,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black26,
-                                      blurRadius: 4,
-                                      offset: Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: FloatingActionButton(
-                                  heroTag: 'addImageBtn',
-                                  mini: true,
-                                  backgroundColor: Colors.indigo,
-                                  onPressed: _pickImage,
-                                  child: const Icon(
-                                    Icons.add,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Add Image (Optional)',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
+                  // --- IMAGE SECTION REMOVED ---
 
                   // Text field for input item_name (Required)
                   const Text(
@@ -177,7 +103,6 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
                     keyboardType: TextInputType.text,
                     decoration: const InputDecoration(
                       hintText: 'e.g. Synthetic 5W-30',
-
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.symmetric(
                         horizontal: 12,
@@ -241,8 +166,8 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
                               controller: _costController,
                               keyboardType:
                                   const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
+                                decimal: true,
+                              ),
                               inputFormatters: [
                                 FilteringTextInputFormatter.allow(
                                   RegExp(r'^\d+\.?\d{0,2}'),
@@ -276,7 +201,7 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
 
                   // Submit button
                   ElevatedButton(
-                    onPressed: _isUploading ? null : createNewItem,
+                    onPressed: _isSaving ? null : createNewItem,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.indigo[500],
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -288,20 +213,19 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child:
-                        _isUploading
-                            ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                            : const Text(
-                              'Submit',
-                              style: TextStyle(color: Colors.white),
+                    child: _isSaving
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
                             ),
+                          )
+                        : const Text(
+                            'Submit',
+                            style: TextStyle(color: Colors.white),
+                          ),
                   ),
                 ],
               ),
@@ -312,99 +236,23 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
     );
   }
 
-  // Pick image from gallery or camera
-  Future<void> _pickImage() async {
-    final ImagePicker picker = ImagePicker();
-
-    
-    showModalBottomSheet(
-      context: context,
-      builder: (BuildContext context) {
-        return SafeArea(
-          child: Wrap(
-            children: <Widget>[
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: const Text('Gallery'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  final XFile? image = await picker.pickImage(
-                    source: ImageSource.gallery,
-                    maxWidth: 800,
-                  );
-                  if (image != null) {
-                    setState(() {
-                      _imageFile = File(image.path);
-                    });
-                  }
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.camera_alt),
-                title: const Text('Camera'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  final XFile? photo = await picker.pickImage(
-                    source: ImageSource.camera,
-                    maxWidth: 800,
-                  );
-                  if (photo != null) {
-                    setState(() {
-                      _imageFile = File(photo.path);
-                    });
-                  }
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // Upload image to Firebase Storage
-  Future<String?> _uploadImage() async {
-    if (_imageFile == null) return null;
-
-    try {
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('inventory_images')
-          .child('${DateTime.now().millisecondsSinceEpoch}.jpg');
-
-      final uploadTask = storageRef.putFile(_imageFile!);
-      final snapshot = await uploadTask;
-
-      return await snapshot.ref.getDownloadURL();
-    } catch (e) {
-      print('Error uploading image: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error uploading image: $e')));
-      return null;
-    }
-  }
+  // --- REMOVED _pickImage() and _uploadImage() ---
 
   // Submit the form and create a new inventory item
   void createNewItem() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
-        _isUploading = true;
+        _isSaving = true;
       });
 
       try {
-        // Upload image 
-        if (_imageFile != null) {
-          _uploadedImageUrl = await _uploadImage();
-        }
-
-        // Create new inventory item
+        // Create new inventory item (Image string is empty)
         final newItem = InventoryInfo(
           item_name: _nameController.text.trim(),
           item_description: _descriptionController.text.trim(),
           item_quantity: int.parse(_quantityController.text),
           item_costperunit: double.parse(_costController.text),
-          item_image: _uploadedImageUrl ?? '',
+          item_image: '', // No image URL
           created_at: DateTime.now(),
           updated_at: DateTime.now(),
         );
@@ -426,7 +274,6 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
           AppRouter.goBack(context);
         }
       } catch (e) {
-       
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -442,7 +289,7 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
         // Stop loading
         if (mounted) {
           setState(() {
-            _isUploading = false;
+            _isSaving = false;
           });
         }
       }

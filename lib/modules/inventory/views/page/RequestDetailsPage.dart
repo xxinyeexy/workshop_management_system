@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import '../../../../domain/MarketplaceInfo.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:workshop_management_system/provider/InventoryController.dart';
+import 'package:workshop_management_system/domain/InventoryInfo.dart';
+import 'package:workshop_management_system/core/widgets/btmNavigationMenu.dart'; // Import SidebarMenu
+import 'package:geolocator/geolocator.dart';
+
 
 class RequestDetailsPage extends StatefulWidget {
   final MarketplaceInfo request_item;
